@@ -11,6 +11,16 @@ export interface EventSettings {
   formFields: FormField[];
 }
 
+export interface Event {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isRegistrationOpen: boolean;
+  description?: string;
+  formFields: FormField[];
+  createdAt: number;
+}
+
 export interface Registration {
   id: string;
   userId?: string;

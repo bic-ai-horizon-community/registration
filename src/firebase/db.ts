@@ -2,6 +2,8 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc, onSnapshot }
 import { db } from "./config";
 import type { Registration } from "../types";
 
+const EVENTS_COLLECTION = "events";
+
 export const generateToken = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -12,46 +14,50 @@ export const generateToken = () => {
   return result;
 };
 
-export const registerAttendee = async (responses: Record<string, string>, userId?: string): Promise<{ token: string, id: string }> => {
-  const registrationsRef = collection(db, "registrations");
-  
+const getRegistrationsRef = (eventId: string) =>
+  collection(db, EVENTS_COLLECTION, eventId, "registrations");
+
+const getRegistrationDocRef = (eventId: string, regId: string) =>
+  doc(db, EVENTS_COLLECTION, eventId, "registrations", regId);
+
+
+export const registerAttendee = async (eventId: string, responses: Record<string, string>, userId?: string): Promise<{ token: string, id: string }> => {
+  const registrationsRef = getRegistrationsRef(eventId);
+
   if (responses.email) {
     const q = query(registrationsRef, where("responses.email", "==", responses.email));
     const querySnapshot = await getDocs(q);
-    
     if (!querySnapshot.empty) {
-      throw new Error("An attendee with this email is already registered.");
+      throw new Error("An attendee with this email is already registered for this event.");
     }
   }
-  
+
   const token = generateToken();
-  const docRef = await addDoc(registrationsRef, {
-    responses,
+  const newRegistration: Omit<Registration, 'id'> = {
     token,
-    userId: userId || null,
+    responses,
     present: false,
     createdAt: Date.now(),
-    checkedInAt: null
-  });
-  
+    checkedInAt: null,
+    ...(userId ? { userId } : {})
+  };
+
+  const docRef = await addDoc(registrationsRef, newRegistration);
+
   return { token, id: docRef.id };
 };
 
-export const getRegistrationByUid = async (uid: string): Promise<Registration | null> => {
-  const registrationsRef = collection(db, "registrations");
+export const getRegistrationByUid = async (eventId: string, uid: string): Promise<Registration | null> => {
+  const registrationsRef = getRegistrationsRef(eventId);
   const q = query(registrationsRef, where("userId", "==", uid));
   const querySnapshot = await getDocs(q);
-  
-  if (querySnapshot.empty) {
-    return null;
-  }
-  
+  if (querySnapshot.empty) return null;
   const docData = querySnapshot.docs[0];
   return { id: docData.id, ...docData.data() } as Registration;
 };
 
-export const subscribeToRegistrationByUid = (uid: string, callback: (reg: Registration | null) => void) => {
-  const q = query(collection(db, "registrations"), where("userId", "==", uid));
+export const subscribeToRegistrationByUid = (eventId: string, uid: string, callback: (reg: Registration | null) => void) => {
+  const q = query(getRegistrationsRef(eventId), where("userId", "==", uid));
   return onSnapshot(q, (querySnapshot) => {
     if (querySnapshot.empty) {
       callback(null);
@@ -62,42 +68,36 @@ export const subscribeToRegistrationByUid = (uid: string, callback: (reg: Regist
   });
 };
 
-export const updateRegistration = async (id: string, responses: Record<string, string>): Promise<void> => {
-  const docRef = doc(db, "registrations", id);
-  await updateDoc(docRef, {
-    responses
-  });
+export const updateRegistration = async (eventId: string, id: string, responses: Record<string, string>): Promise<void> => {
+  const docRef = getRegistrationDocRef(eventId, id);
+  await updateDoc(docRef, { responses });
 };
 
-export const getRegistrations = async (): Promise<Registration[]> => {
-  const registrationsRef = collection(db, "registrations");
+export const getRegistrations = async (eventId: string): Promise<Registration[]> => {
+  const registrationsRef = getRegistrationsRef(eventId);
   const querySnapshot = await getDocs(registrationsRef);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Registration));
 };
 
-export const subscribeToRegistrations = (callback: (regs: Registration[]) => void) => {
-  const registrationsRef = collection(db, "registrations");
+export const subscribeToRegistrations = (eventId: string, callback: (regs: Registration[]) => void) => {
+  const registrationsRef = getRegistrationsRef(eventId);
   return onSnapshot(registrationsRef, (querySnapshot) => {
     const regs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Registration));
     callback(regs);
   });
 };
 
-export const getRegistrationByToken = async (token: string): Promise<Registration | null> => {
-  const registrationsRef = collection(db, "registrations");
+export const getRegistrationByToken = async (eventId: string, token: string): Promise<Registration | null> => {
+  const registrationsRef = getRegistrationsRef(eventId);
   const q = query(registrationsRef, where("token", "==", token));
   const querySnapshot = await getDocs(q);
-  
-  if (querySnapshot.empty) {
-    return null;
-  }
-  
+  if (querySnapshot.empty) return null;
   const docSnap = querySnapshot.docs[0];
   return { id: docSnap.id, ...docSnap.data() } as Registration;
 };
 
-export const subscribeToRegistrationByToken = (token: string, callback: (reg: Registration | null) => void) => {
-  const q = query(collection(db, "registrations"), where("token", "==", token));
+export const subscribeToRegistrationByToken = (eventId: string, token: string, callback: (reg: Registration | null) => void) => {
+  const q = query(getRegistrationsRef(eventId), where("token", "==", token));
   return onSnapshot(q, (querySnapshot) => {
     if (querySnapshot.empty) {
       callback(null);
@@ -108,8 +108,8 @@ export const subscribeToRegistrationByToken = (token: string, callback: (reg: Re
   });
 };
 
-export const markAttendance = async (id: string): Promise<void> => {
-  const docRef = doc(db, "registrations", id);
+export const markAttendance = async (eventId: string, id: string): Promise<void> => {
+  const docRef = getRegistrationDocRef(eventId, id);
   await updateDoc(docRef, {
     present: true,
     checkedInAt: Date.now()

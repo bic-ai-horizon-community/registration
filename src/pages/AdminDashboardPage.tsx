@@ -2,22 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { Users, UserCheck, UserX, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { subscribeToRegistrations } from '../firebase/db';
+import { useAdminEvent } from '../contexts/AdminEventContext';
 import type { Registration } from '../types';
 
 export const AdminDashboardPage: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const { selectedEvent: activeEvent } = useAdminEvent();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = subscribeToRegistrations((data) => {
-      // Sort by newest first
-      data.sort((a, b) => b.createdAt - a.createdAt);
+    if (!activeEvent) {
+      setRegistrations([]);
+      setLoading(false);
+      return;
+    }
+    const unsubscribe = subscribeToRegistrations(activeEvent.id, (data) => {
+      data.sort((a: Registration, b: Registration) => b.createdAt - a.createdAt);
       setRegistrations(data);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [activeEvent]);
 
   if (loading) {
     return <div className="flex h-32 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div></div>;

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
+import { AdminEventProvider } from './contexts/AdminEventContext';
 
 // Layouts
 import { Layout } from './components/Layout';
@@ -13,6 +14,7 @@ import { AdminLoginPage } from './pages/AdminLoginPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminScannerPage } from './pages/AdminScannerPage';
 import { AdminRegistrationsPage } from './pages/AdminRegistrationsPage';
+import { AdminEventsPage } from './pages/AdminEventsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 
 function App() {
@@ -24,16 +26,21 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<RegisterPage />} />
             <Route path="/success" element={<SuccessPage />} />
-            <Route path="/edit/:token" element={<EditRegistrationPage />} />
+            <Route path="/edit/:eventId/:token" element={<EditRegistrationPage />} />
           </Route>
 
           {/* Admin Auth Route */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
           {/* Protected Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route path="/admin" element={
+            <AdminEventProvider>
+              <AdminLayout />
+            </AdminEventProvider>
+          }>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="events" element={<AdminEventsPage />} />
             <Route path="scanner" element={<AdminScannerPage />} />
             <Route path="registrations" element={<AdminRegistrationsPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />

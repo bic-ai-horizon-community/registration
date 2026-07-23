@@ -35,3 +35,9 @@ export const exportToCsv = (registrations: Registration[], fields: FormField[], 
   link.click();
   document.body.removeChild(link);
 };
+
+export const exportToExcel = (registrations: Registration[], fields: FormField[], filename = "registrations.xlsx") => {
+  // A simple fallback to CSV if no Excel library is present
+  exportToCsv(registrations, fields, filename.replace('.xlsx', '.csv'));
+};
+

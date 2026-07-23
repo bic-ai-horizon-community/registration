@@ -1,108 +1,117 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
+import { QRCodeSVG } from 'qrcode.react';
+import { Save, Download, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { subscribeToRegistrationByToken, updateRegistration } from '../firebase/db';
-import { subscribeToSettings } from '../firebase/settings';
-import { useAuth } from '../hooks/useAuth';
-import type { EventSettings, Registration } from '../types';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import type { Registration, Event, FormField } from '../types';
 
 export const EditRegistrationPage: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+  const { eventId, token } = useParams<{ eventId: string; token: string }>();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-  
-  const [settings, setSettings] = useState<EventSettings | null>(null);
+
   const [registration, setRegistration] = useState<Registration | null>(null);
-  const [loadingConfig, setLoadingConfig] = useState(true);
-  
-  const [loading, setLoading] = useState(false);
+  const [eventData, setEventData] = useState<Event | null>(null);
+  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  const [responses, setResponses] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    let unsubscribeSettings: (() => void) | undefined;
-    let unsubscribeRegistration: (() => void) | undefined;
-
-    if (!token) {
-      navigate('/');
+    if (!token || !eventId) {
+      setLoading(false);
       return;
     }
 
-    if (!authLoading) {
-      unsubscribeSettings = subscribeToSettings((config) => {
-        setSettings(config);
-        
-        unsubscribeRegistration = subscribeToRegistrationByToken(token, (reg) => {
-          if (!reg) {
-            setError('Registration not found. Invalid token.');
-            setLoadingConfig(false);
-            return;
-          }
-
-          if (reg.userId && (!user || reg.userId !== user.uid)) {
-            setError('Access denied. You must be signed in with the account that created this registration.');
-            setLoadingConfig(false);
-            return;
-          }
-
-          setRegistration(reg);
-          
-          setResponses(prev => {
-            if (Object.keys(prev).length > 0) return prev;
-            const initialResponses: Record<string, string> = { ...reg.responses };
-            config.formFields.forEach(field => {
-              if (initialResponses[field.id] === undefined) {
-                initialResponses[field.id] = '';
-              }
-            });
-            return initialResponses;
-          });
-          
-          setLoadingConfig(false);
-        });
-      });
-    }
-
-    return () => {
-      if (unsubscribeSettings) unsubscribeSettings();
-      if (unsubscribeRegistration) unsubscribeRegistration();
+    // Fetch event to get form fields
+    const fetchEvent = async () => {
+      try {
+        const eventDoc = await getDoc(doc(db, "events", eventId));
+        if (eventDoc.exists()) {
+          setEventData({ id: eventDoc.id, ...eventDoc.data() } as Event);
+        }
+      } catch (err) {
+        console.error("Error fetching event:", err);
+      }
     };
-  }, [token, navigate, user, authLoading]);
+    fetchEvent();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setResponses(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const unsubscribe = subscribeToRegistrationByToken(eventId, token, (data) => {
+      if (data) {
+        setRegistration(data);
+        setResponses(data.responses);
+      } else {
+        setError('Registration not found.');
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [token, eventId]);
+
+  const handleChange = (id: string, value: string) => {
+    setResponses(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registration) return;
-    
-    setLoading(true);
+    if (!registration || !eventId || !eventData) return;
+
+    if (registration.present) {
+      setError('Cannot edit registration after attendance is confirmed.');
+      return;
+    }
+
+    setSaving(true);
     setError('');
     setSuccess('');
 
     try {
-      await updateRegistration(registration.id, responses);
-      setSuccess('Registration updated successfully!');
-      
-      // Update local registration state
-      setRegistration({ ...registration, responses });
-      
+      for (const field of eventData.formFields) {
+        if (field.required && !responses[field.id]) {
+          throw new Error(`${field.label} is required`);
+        }
+      }
+      await updateRegistration(eventId, registration.id, responses);
+      setSuccess('Details updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message || 'An error occurred during update. Check permissions.');
+      setError(err.message || 'Failed to update details. Please try again.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  if (authLoading || loadingConfig) {
+  const downloadQR = () => {
+    const svg = document.getElementById('qr-code-svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngUrl = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = pngUrl;
+      downloadLink.download = `registration-${token}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+  };
+
+  if (loading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#020817] flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
       </div>
     );
@@ -110,102 +119,127 @@ export const EditRegistrationPage: React.FC = () => {
 
   if (error && !registration) {
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
-        <Card className="p-12 border-red-200 bg-red-50 dark:bg-red-950/20">
-          <h2 className="text-2xl font-bold mb-2 text-red-600">Access Error</h2>
-          <p className="text-red-500">{error}</p>
-          <Button onClick={() => navigate('/')} className="mt-6" variant="outline">
-            Go to Home
-          </Button>
+      <div className="min-h-screen bg-gray-50 dark:bg-[#020817] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center py-12">
+          <p className="text-red-500 mb-4">{error}</p>
+          <Button onClick={() => navigate('/')}>Return Home</Button>
         </Card>
       </div>
     );
   }
 
+  if (!registration || !eventData) return null;
+
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-3 text-gray-900 dark:text-gray-50">
-          Edit Registration
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Update your details below.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-[#020817] py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Registration Details</h1>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">For {eventData.name}</p>
+        </div>
 
-      <Card className="shadow-lg border-0 ring-1 ring-gray-200 dark:ring-gray-800">
-        <CardHeader className="bg-brand-50/50 dark:bg-brand-950/20 border-b border-gray-100 dark:border-gray-800 rounded-t-xl">
-          <CardTitle className="text-xl">Your Details</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-              {error}
+        {registration.present && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/50 p-4 rounded-xl flex flex-col sm:flex-row items-center gap-4 shadow-sm">
+            <div className="bg-green-100 dark:bg-green-800 p-2 rounded-full shrink-0">
+              <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
-          )}
-          
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm font-medium">
-              {success}
+            <div className="text-center sm:text-left flex-1">
+              <h3 className="font-bold text-green-800 dark:text-green-300 text-lg">Attendance Confirmed</h3>
+              <p className="text-green-600 dark:text-green-400 text-sm">
+                You have been marked present.{registration.checkedInAt ? ` Checked in at ${new Date(registration.checkedInAt).toLocaleString()}.` : ''} Editing is no longer permitted.
+              </p>
             </div>
-          )}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {settings?.formFields.map(field => (
-                field.type === 'select' ? (
-                  <div key={field.id} className={field.id === 'email' ? 'md:col-span-2' : ''}>
-                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                      {field.label} {field.required && <span className="text-red-500">*</span>}
+        <div className="grid md:grid-cols-2 gap-8">
+          <Card className="flex flex-col h-full border-brand-100 dark:border-gray-800 shadow-lg">
+            <div className="bg-brand-50 dark:bg-gray-800/50 px-6 py-4 border-b border-brand-100 dark:border-gray-800">
+              <h3 className="text-lg font-medium text-brand-900 dark:text-gray-200 text-center">Your Entry Pass</h3>
+            </div>
+            <CardContent className="p-8 flex flex-col items-center justify-center flex-1">
+              <div className={`bg-white p-4 rounded-xl shadow-inner border mb-6 inline-block ${registration.present ? 'border-green-300 shadow-green-100' : 'border-gray-100'}`}>
+                <QRCodeSVG
+                  id="qr-code-svg"
+                  value={window.location.href}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                  className="rounded-lg"
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 font-mono bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-md">
+                ID: {token}
+              </p>
+              <Button onClick={downloadQR} variant="outline" className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                Save QR Code
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg dark:border-gray-800">
+            <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">Personal Details</h3>
+            </div>
+            <CardContent className="p-6">
+              {error && (
+                <div className="mb-6 p-3 bg-red-50 text-red-600 border border-red-200 rounded-md text-sm flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p>{error}</p>
+                </div>
+              )}
+              {success && (
+                <div className="mb-6 p-3 bg-green-50 text-green-700 border border-green-200 rounded-md text-sm font-medium">
+                  {success}
+                </div>
+              )}
+              <form onSubmit={handleSave} className="space-y-4">
+                {eventData.formFields.map((field: FormField) => (
+                  <div key={field.id} className="space-y-1.5">
+                    <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {field.label} {field.required && <span className="text-brand-500">*</span>}
                     </label>
-                    <select
-                      name={field.id}
-                      required={field.required}
-                      value={responses[field.id] || ''}
-                      onChange={handleChange}
-                      className="flex h-12 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-50"
-                    >
-                      <option value="" disabled className="bg-white dark:bg-gray-900 text-gray-500">Select {field.label.toLowerCase()}</option>
-                      {(field.options || []).map((opt, i) => (
-                        <option key={i} value={opt} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50">
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                    {field.type === 'select' ? (
+                      <select
+                        id={field.id}
+                        required={field.required}
+                        value={responses[field.id] || ''}
+                        onChange={(e) => handleChange(field.id, e.target.value)}
+                        disabled={registration.present}
+                        className="flex h-10 w-full rounded-md border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-50"
+                      >
+                        <option value="" disabled>Select an option</option>
+                        {field.options?.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        id={field.id}
+                        type={field.type}
+                        required={field.required}
+                        value={responses[field.id] || ''}
+                        onChange={(e) => handleChange(field.id, e.target.value)}
+                        disabled={registration.present}
+                        className="disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-800"
+                      />
+                    )}
                   </div>
-                ) : (
-                  <Input
-                    key={field.id}
-                    label={field.label}
-                    name={field.id}
-                    type={field.type}
-                    required={field.required}
-                    value={responses[field.id] || ''}
-                    onChange={handleChange}
-                    readOnly={field.id === 'email'}
-                    placeholder={`Enter your ${field.label.toLowerCase()}`}
-                    className={field.id === 'email' ? 'md:col-span-2 bg-gray-50 dark:bg-gray-900 cursor-not-allowed' : ''}
-                  />
-                )
-              ))}
-            </div>
-            
-            <div className="pt-4 flex gap-4">
-              <Button type="submit" className="flex-1 h-12 text-lg" isLoading={loading}>
-                Save Changes
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="flex-1 h-12 text-lg"
-                onClick={() => navigate('/')}
-              >
-                View Ticket
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                ))}
+                {!registration.present && (
+                  <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-800">
+                    <Button type="submit" className="w-full" isLoading={saving}>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
