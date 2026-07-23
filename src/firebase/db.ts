@@ -115,3 +115,11 @@ export const markAttendance = async (eventId: string, id: string): Promise<void>
     checkedInAt: Date.now()
   });
 };
+
+export const updateAttendanceStatus = async (eventId: string, id: string, present: boolean): Promise<void> => {
+  const docRef = getRegistrationDocRef(eventId, id);
+  await updateDoc(docRef, {
+    present,
+    checkedInAt: present ? Date.now() : null
+  });
+};

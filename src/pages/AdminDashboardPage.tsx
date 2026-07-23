@@ -99,7 +99,9 @@ export const AdminDashboardPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4 font-medium">Name</th>
                   <th className="px-6 py-4 font-medium">Email</th>
-                  <th className="px-6 py-4 font-medium">College</th>
+                  {activeEvent?.formFields.filter(f => f.id !== 'fullName' && f.id !== 'email').map(field => (
+                    <th key={field.id} className="px-6 py-4 font-medium whitespace-nowrap">{field.label}</th>
+                  ))}
                   <th className="px-6 py-4 font-medium">Status</th>
                 </tr>
               </thead>
@@ -109,7 +111,11 @@ export const AdminDashboardPage: React.FC = () => {
                     <tr key={reg.id} className="bg-white dark:bg-transparent">
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{reg.responses['fullName'] || Object.values(reg.responses)[0] || 'Unknown'}</td>
                       <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{reg.responses['email'] || '-'}</td>
-                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{reg.responses['college'] || '-'}</td>
+                      {activeEvent?.formFields.filter(f => f.id !== 'fullName' && f.id !== 'email').map(field => (
+                        <td key={field.id} className="px-6 py-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          {reg.responses[field.id] || '-'}
+                        </td>
+                      ))}
                       <td className="px-6 py-4">
                         {reg.present ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">

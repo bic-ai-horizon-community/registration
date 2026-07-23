@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ScanLine, LogOut, Settings, CalendarDays, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Users, ScanLine, LogOut, Settings, CalendarDays, ChevronDown, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { logoutUser } from '../firebase/auth';
 import { ADMIN_EMAIL } from '../config';
@@ -37,7 +37,9 @@ export const AdminLayout: React.FC = () => {
       <aside className="w-64 border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-[#020817] hidden md:flex flex-col shrink-0">
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
           <Link to="/" className="flex items-center space-x-2">
-            <img src="/community_logo.png" alt="BIC AI Horizon" className="h-7 w-7 rounded-full object-cover" />
+            <div className="h-8 w-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
             <span className="font-bold text-lg tracking-tight text-gray-900 dark:text-gray-50">Admin Panel</span>
           </Link>
         </div>
@@ -77,7 +79,9 @@ export const AdminLayout: React.FC = () => {
         {/* Header - Desktop & Mobile */}
         <header className="h-14 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-[#020817] flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center space-x-2 md:hidden">
-            <img src="/community_logo.png" alt="BIC AI Horizon" className="h-7 w-7 rounded-full object-cover" />
+            <div className="h-7 w-7 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
             <span className="font-bold text-base">Admin</span>
           </div>
           
