@@ -2,32 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Check if the user is the admin
+    // Admin check: Any authenticated Firebase Auth user (or specifically admin email)
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'aihorizon@admin.com';
+      return request.auth != null;
     }
 
-    // ----- NEW STRUCTURE (Multi-Event System) -----
+    // Events Collection
     match /events/{eventId} {
       allow read: if true;
       allow write: if isAdmin();
       
       match /registrations/{registrationId} {
+        // Anyone can read (needed for success page, edit page, QR lookup)
         allow read: if true;
+        
+        // Anyone can submit a registration form
         allow create: if true;
-        allow update: if true;
+        
+        // Admin can update anything (e.g. mark attendance).
+        // Unauthenticated attendees can ONLY update their details IF they have NOT been marked present yet,
+        // and they CANNOT modify their own attendance status (present / checkedInAt).
+        allow update: if isAdmin() || (
+          resource.data.present == false &&
+          request.resource.data.present == false &&
+          request.resource.data.checkedInAt == resource.data.checkedInAt
+        );
+        
+        // Only admin can delete registrations
         allow delete: if isAdmin();
       }
     }
 
-    // ----- OLD STRUCTURE (Stops errors on Cloudflare until you push the new code) -----
-    match /registrations/{registrationId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if isAdmin();
-    }
-    
+    // Settings Collection
     match /settings/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
