@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /eventSettings/{setting} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /registrations/{registration} {
+      allow read: if true; 
+      
+      // Anyone can create. To edit, user must own the registration or have no auth attached (legacy)
+      allow create: if true;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      allow delete: if request.auth != null;
+    }
+  }
+}

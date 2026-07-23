@@ -1,0 +1,37 @@
+import type { Registration, FormField } from "../types";
+
+export const exportToCsv = (registrations: Registration[], fields: FormField[], filename = "registrations.csv") => {
+  const headers = [
+    "ID",
+    ...fields.map(f => f.label),
+    "Present",
+    "Checked In At",
+    "Registered At"
+  ];
+
+  const csvRows = [headers.join(",")];
+
+  for (const row of registrations) {
+    const values = [
+      `"${row.id}"`,
+      ...fields.map(f => `"${(row.responses[f.id] || '').replace(/"/g, '""')}"`),
+      row.present ? "Yes" : "No",
+      row.checkedInAt ? new Date(row.checkedInAt).toLocaleString() : "N/A",
+      row.createdAt ? new Date(row.createdAt).toLocaleString() : "N/A"
+    ];
+    csvRows.push(values.join(","));
+  }
+
+  const csvString = csvRows.join("\n");
+  const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = 'hidden';
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
