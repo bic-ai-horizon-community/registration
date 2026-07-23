@@ -7,18 +7,19 @@ export const exportToCsv = (registrations: Registration[], fields: FormField[], 
     "Present",
     "Checked In At",
     "Registered At"
-  ];
+  ].map(header => `"${String(header).replace(/"/g, '""')}"`);
 
   const csvRows = [headers.join(",")];
 
   for (const row of registrations) {
     const values = [
-      `"${row.id}"`,
-      ...fields.map(f => `"${(row.responses[f.id] || '').replace(/"/g, '""')}"`),
+      row.id,
+      ...fields.map(f => String(row.responses[f.id] || '')),
       row.present ? "Yes" : "No",
       row.checkedInAt ? new Date(row.checkedInAt).toLocaleString() : "N/A",
       row.createdAt ? new Date(row.createdAt).toLocaleString() : "N/A"
-    ];
+    ].map(value => `"${String(value).replace(/"/g, '""')}"`);
+    
     csvRows.push(values.join(","));
   }
 
