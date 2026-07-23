@@ -7,8 +7,8 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 
 export const AdminLoginPage: React.FC = () => {
-  const [email, setEmail] = useState('aihorizon@admin.com');
-  const [password, setPassword] = useState('aihorizon@admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

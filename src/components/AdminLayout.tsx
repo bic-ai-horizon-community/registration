@@ -4,6 +4,8 @@ import { LayoutDashboard, Users, ScanLine, LogOut, BrainCircuit, Settings } from
 import { useAuth } from '../hooks/useAuth';
 import { logoutUser } from '../firebase/auth';
 
+import { ADMIN_EMAILS } from '../config';
+
 export const AdminLayout: React.FC = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -16,7 +18,7 @@ export const AdminLayout: React.FC = () => {
     );
   }
 
-  if (!user) {
+  if (!user || !user.email || !ADMIN_EMAILS.includes(user.email)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 

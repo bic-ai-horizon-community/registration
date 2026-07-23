@@ -2,19 +2,30 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Define admin check function
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email in ['aihorizon@admin.com'];
+    }
+
     match /eventSettings/{setting} {
+      // Anyone can read settings
       allow read: if true;
-      allow write: if request.auth != null;
+      // Only admins can write settings
+      allow write: if isAdmin();
     }
 
     match /registrations/{registration} {
+      // Admins can read all. Users can read their own. Public users can read without auth (needed for duplicates check)
       allow read: if true; 
       
-      // Anyone can create. To edit, user must own the registration or have no auth attached (legacy)
+      // Anyone can create. 
       allow create: if true;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // To edit, user must own the registration OR be an admin
+      allow update: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
 
-      allow delete: if request.auth != null;
+      // Only admins can delete
+      allow delete: if isAdmin();
     }
   }
 }
