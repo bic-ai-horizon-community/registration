@@ -3,7 +3,7 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, ScanLine, LogOut, Settings, CalendarDays, ChevronDown, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { logoutUser } from '../firebase/auth';
-import { ADMIN_EMAIL } from '../config';
+
 import { useAdminEvent } from '../contexts/AdminEventContext';
 
 export const AdminLayout: React.FC = () => {
@@ -19,7 +19,7 @@ export const AdminLayout: React.FC = () => {
     );
   }
 
-  if (!user || !user.email || user.email !== ADMIN_EMAIL) {
+  if (!user || !user.email) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 

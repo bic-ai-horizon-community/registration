@@ -5,7 +5,7 @@ import { loginAdmin } from '../firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { ADMIN_EMAIL, ADMIN_PASSWORD } from '../config';
+
 
 export const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -23,9 +23,7 @@ export const AdminLoginPage: React.FC = () => {
     setError('');
 
     try {
-      if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
-        throw new Error('Invalid credentials');
-      }
+
       await loginAdmin(email, password);
       navigate(from, { replace: true });
     } catch (err: any) {

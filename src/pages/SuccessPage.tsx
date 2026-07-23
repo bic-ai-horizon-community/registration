@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button';
 
 export const SuccessPage: React.FC = () => {
   const location = useLocation();
-  const { token, eventId, email } = location.state || {};
+  const { token, eventId } = location.state || {};
 
   if (!token || !eventId) {
     return <Navigate to="/" replace />;
