@@ -1,31 +1,36 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Define admin check function
+    
+    // Check if the user is the admin
     function isAdmin() {
-      return request.auth != null && request.auth.token.email in ['aihorizon@admin.com'];
+      return request.auth != null && request.auth.token.email == 'aihorizon@admin.com';
     }
 
-    match /eventSettings/{setting} {
-      // Anyone can read settings
+    // ----- NEW STRUCTURE (Multi-Event System) -----
+    match /events/{eventId} {
       allow read: if true;
-      // Only admins can write settings
       allow write: if isAdmin();
+      
+      match /registrations/{registrationId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if true;
+        allow delete: if isAdmin();
+      }
     }
 
-    match /registrations/{registration} {
-      // Admins can read all. Users can read their own. Public users can read without auth (needed for duplicates check)
-      allow read: if true; 
-      
-      // Anyone can create. 
+    // ----- OLD STRUCTURE (Stops errors on Cloudflare until you push the new code) -----
+    match /registrations/{registrationId} {
+      allow read: if true;
       allow create: if true;
-      
-      // To edit, user must own the registration OR be an admin
-      allow update: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
-
-      // Only admins can delete
+      allow update: if true;
       allow delete: if isAdmin();
+    }
+    
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
