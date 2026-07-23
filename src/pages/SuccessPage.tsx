@@ -48,8 +48,8 @@ export const SuccessPage: React.FC = () => {
             Registration Successful!
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            We've saved your spot. Please save this QR code for entry.
-            {email && <span> A confirmation will be sent to {email}.</span>}
+            We've saved your spot. Make sure you come loginned in this site or You can also save this QR code for entry.
+            This QR is very important to mark your registration and presence in this Event.
           </p>
         </div>
 
