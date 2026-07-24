@@ -181,6 +181,7 @@ export const AdminSettingsPage: React.FC = () => {
                       className="flex h-10 w-full rounded-md border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:text-gray-50"
                     >
                       <option value="text">Text (Short)</option>
+                      <option value="textarea">Textarea (Multi-line / Referrals)</option>
                       <option value="email">Email</option>
                       <option value="tel">Phone Number</option>
                       <option value="number">Number</option>

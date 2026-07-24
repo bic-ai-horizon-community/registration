@@ -226,6 +226,16 @@ export const RegisterPage: React.FC = () => {
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>
+                    ) : field.type === 'textarea' ? (
+                      <textarea
+                        id={field.id}
+                        required={field.required}
+                        rows={4}
+                        value={responses[field.id] || ''}
+                        onChange={(e) => handleChange(field.id, e.target.value)}
+                        className="w-full p-3 text-base rounded-xl bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-gray-50 resize-y"
+                        placeholder={`Enter ${field.label.toLowerCase()} (e.g. 1 per line, up to 40 names)`}
+                      />
                     ) : (
                       <Input
                         id={field.id}

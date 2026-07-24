@@ -255,6 +255,17 @@ export const EditRegistrationPage: React.FC = () => {
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>
+                    ) : field.type === 'textarea' ? (
+                      <textarea
+                        id={field.id}
+                        required={field.required}
+                        rows={4}
+                        value={responses[field.id] || ''}
+                        onChange={(e) => handleChange(field.id, e.target.value)}
+                        disabled={registration.present}
+                        className="w-full p-3 text-sm rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-50 resize-y"
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                      />
                     ) : (
                       <Input
                         id={field.id}
@@ -263,7 +274,7 @@ export const EditRegistrationPage: React.FC = () => {
                         value={responses[field.id] || ''}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         disabled={registration.present}
-                        className="disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-800"
+                        className="h-10 dark:border-gray-700"
                       />
                     )}
                   </div>
