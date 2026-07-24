@@ -1,36 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
-  --color-brand-950: #172554;
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
 }
 
 @layer base {
   :root {
     --background: #ffffff;
-    --foreground: #020817;
+    --foreground: #0f172a;
   }
   .dark {
-    --background: #020817;
-    --foreground: #f8fafc;
+    --background: #030712;
+    --foreground: #f1f5f9;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--background);
     color: var(--foreground);
     @apply antialiased min-h-screen transition-colors duration-300;
   }
 }
 
-/* QR Scanner Overrides */
+/* ======================== */
+/* Animations               */
+/* ======================== */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+.animate-delay-100 { animation-delay: 100ms; }
+.animate-delay-200 { animation-delay: 200ms; }
+.animate-delay-300 { animation-delay: 300ms; }
+.animate-delay-400 { animation-delay: 400ms; }
+
+/* ======================== */
+/* QR Scanner Overrides     */
+/* ======================== */
 .qr-scanner-container,
 #qr-reader {
   border: none !important;
@@ -63,7 +111,7 @@
   padding: 0.5rem 0 !important;
 }
 #qr-reader button {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
   color: white !important;
   border: none !important;
   border-radius: 0.625rem !important;
@@ -72,10 +120,10 @@
   font-size: 0.875rem !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.35) !important;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.35) !important;
 }
 #qr-reader button:hover {
-  background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+  background: linear-gradient(135deg, #4338ca, #3730a3) !important;
   transform: translateY(-1px) !important;
 }
 #qr-reader select {
@@ -94,7 +142,7 @@
   border-color: #334155 !important;
   color: #f1f5f9 !important;
 }
-#qr-reader a { color: #2563eb !important; text-decoration: none !important; font-weight: 500 !important; }
-#qr-reader a:hover { color: #1d4ed8 !important; text-decoration: underline !important; }
-.dark #qr-reader a { color: #60a5fa !important; }
+#qr-reader a { color: #4f46e5 !important; text-decoration: none !important; font-weight: 500 !important; }
+#qr-reader a:hover { color: #4338ca !important; text-decoration: underline !important; }
+.dark #qr-reader a { color: #818cf8 !important; }
 #qr-reader__dashboard_section_swaplink { margin: 0.5rem 0 !important; }

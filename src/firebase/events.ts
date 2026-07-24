@@ -9,12 +9,13 @@ const defaultFormFields: FormField[] = [
   { id: 'email', label: 'Email Address', type: 'email', required: true },
 ];
 
-export const createEvent = async (name: string): Promise<string> => {
+export const createEvent = async (name: string, description?: string): Promise<string> => {
   const newEventRef = doc(collection(db, EVENTS_COLLECTION));
   
   const newEvent: Event = {
     id: newEventRef.id,
     name,
+    description: description || '',
     isActive: false,
     isRegistrationOpen: false,
     formFields: defaultFormFields,

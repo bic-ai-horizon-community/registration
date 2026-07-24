@@ -179,14 +179,16 @@ export const AdminRegistrationsPage: React.FC = () => {
                           )}
                         </button>
                         {reg.present && reg.checkedInAt && (
-                          <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                            {new Date(reg.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                          <div className="text-[11px] text-gray-500 whitespace-nowrap mt-1">
+                            {new Date(reg.checkedInAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {new Date(reg.createdAt).toLocaleDateString()}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-700 dark:text-gray-300">
+                        {new Date(reg.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Button

@@ -10,6 +10,7 @@ import { useAdminEvent } from '../contexts/AdminEventContext';
 export const AdminEventsPage: React.FC = () => {
   const { events, loading, selectedEventId, setSelectedEventId } = useAdminEvent();
   const [newEventName, setNewEventName] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   
@@ -28,9 +29,10 @@ export const AdminEventsPage: React.FC = () => {
     setIsCreating(true);
     setCreateError('');
     try {
-      const id = await createEvent(newEventName.trim());
+      const id = await createEvent(newEventName.trim(), newEventDescription.trim());
       setSelectedEventId(id);
       setNewEventName('');
+      setNewEventDescription('');
     } catch (err: any) {
       setCreateError(err.message || 'Failed to create event');
     } finally {
@@ -120,17 +122,26 @@ export const AdminEventsPage: React.FC = () => {
           <CardTitle>Create New Event</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateEvent} className="flex flex-col sm:flex-row gap-3">
-            <Input 
-              placeholder="e.g., AI Horizon 2026"
-              value={newEventName}
-              onChange={(e) => setNewEventName(e.target.value)}
-              className="flex-1"
+          <form onSubmit={handleCreateEvent} className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Input 
+                placeholder="e.g., AI Horizon 2026"
+                value={newEventName}
+                onChange={(e) => setNewEventName(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" isLoading={isCreating} disabled={!newEventName.trim()}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Event
+              </Button>
+            </div>
+            <textarea
+              placeholder="Event description (optional)"
+              value={newEventDescription}
+              onChange={(e) => setNewEventDescription(e.target.value)}
+              rows={2}
+              className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:bg-gray-900 dark:text-gray-100 p-2.5 placeholder:text-gray-400"
             />
-            <Button type="submit" isLoading={isCreating} disabled={!newEventName.trim()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Event
-            </Button>
           </form>
           {createError && <p className="text-red-500 text-sm mt-2">{createError}</p>}
         </CardContent>

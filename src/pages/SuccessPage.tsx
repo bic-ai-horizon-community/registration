@@ -1,8 +1,7 @@
 import React from 'react';
 import { useLocation, Navigate, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { CheckCircle2, Download } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/Card';
+import { CheckCircle2, Download, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 export const SuccessPage: React.FC = () => {
@@ -38,54 +37,62 @@ export const SuccessPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#020817] py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-[#030712] flex items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full space-y-8 animate-fade-in-up">
+        {/* Success indicator */}
         <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30">
-            <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-500" />
+          <div className="relative inline-flex">
+            <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" style={{ animationDuration: '2s' }}></div>
+            <div className="relative w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </div>
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            Registration Successful!
+          <h2 className="mt-6 text-2xl sm:text-3xl font-bold text-white">
+            You're All Set
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            We've saved your spot. Make sure you come loginned in this site or You can also save this QR code for entry.
-            This QR is very important to mark your registration and presence in this Event.
+          <p className="mt-3 text-sm text-gray-400 max-w-sm mx-auto leading-relaxed">
+            Save this QR code — you'll need it to check in.
           </p>
         </div>
 
-        <Card className="overflow-hidden border-brand-100 dark:border-brand-900/30 shadow-xl shadow-brand-500/10">
-          <div className="bg-brand-50 dark:bg-brand-900/20 px-6 py-4 border-b border-brand-100 dark:border-brand-900/30">
-            <h3 className="text-lg font-medium text-brand-900 dark:text-brand-300 text-center">Your Entry Pass</h3>
+        {/* QR Card */}
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden animate-fade-in-up animate-delay-200">
+          <div className="px-6 py-4 border-b border-white/[0.04]">
+            <h3 className="text-sm font-semibold text-gray-300 text-center tracking-wide uppercase">Your Entry Pass</h3>
           </div>
-          <CardContent className="p-8 flex flex-col items-center">
-            <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-100 mb-6 inline-block">
+          <div className="p-6 sm:p-8 flex flex-col items-center">
+            <div className="bg-white p-3 rounded-2xl shadow-2xl shadow-white/5 mb-6">
               <QRCodeSVG
                 id="qr-code-svg"
                 value={editUrl}
-                size={220}
+                size={200}
                 level="H"
                 includeMargin={true}
-                className="rounded-lg"
+                className="rounded-xl"
               />
             </div>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 text-center font-mono bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-md">
-              ID: {token}
+            <p className="text-xs text-gray-500 mb-6 text-center font-mono bg-white/[0.03] border border-white/[0.06] px-4 py-2 rounded-lg w-full truncate">
+              {token}
             </p>
 
             <div className="w-full space-y-3">
-              <Button onClick={downloadQR} className="w-full" variant="primary">
+              <Button 
+                onClick={downloadQR} 
+                className="w-full h-11 rounded-xl shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Save QR Code
               </Button>
               <Link to={`/edit/${eventId}/${token}`} className="block w-full">
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full h-11 rounded-xl border-white/[0.08] text-gray-300 hover:bg-white/[0.04] hover:text-white transition-all">
                   View / Edit Details
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

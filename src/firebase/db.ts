@@ -21,15 +21,14 @@ const getRegistrationDocRef = (eventId: string, regId: string) =>
   doc(db, EVENTS_COLLECTION, eventId, "registrations", regId);
 
 
-export const registerAttendee = async (eventId: string, responses: Record<string, string>, userId?: string): Promise<{ token: string, id: string }> => {
+export const registerAttendee = async (eventId: string, responses: Record<string, string>, userId: string): Promise<{ token: string, id: string }> => {
   const registrationsRef = getRegistrationsRef(eventId);
 
-  if (responses.email) {
-    const q = query(registrationsRef, where("responses.email", "==", responses.email));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      throw new Error("An attendee with this email is already registered for this event.");
-    }
+  // Check if this user already has a registration (by userId)
+  const existingQ = query(registrationsRef, where("userId", "==", userId));
+  const existingSnapshot = await getDocs(existingQ);
+  if (!existingSnapshot.empty) {
+    throw new Error("You are already registered for this event.");
   }
 
   const token = generateToken();
@@ -39,7 +38,7 @@ export const registerAttendee = async (eventId: string, responses: Record<string
     present: false,
     createdAt: Date.now(),
     checkedInAt: null,
-    ...(userId ? { userId } : {})
+    userId
   };
 
   const docRef = await addDoc(registrationsRef, newRegistration);
@@ -98,6 +97,23 @@ export const getRegistrationByToken = async (eventId: string, token: string): Pr
 
 export const subscribeToRegistrationByToken = (eventId: string, token: string, callback: (reg: Registration | null) => void) => {
   const q = query(getRegistrationsRef(eventId), where("token", "==", token));
+  return onSnapshot(q, (querySnapshot) => {
+    if (querySnapshot.empty) {
+      callback(null);
+    } else {
+      const docSnap = querySnapshot.docs[0];
+      callback({ id: docSnap.id, ...docSnap.data() } as Registration);
+    }
+  });
+};
+
+// Secure version: queries by both token AND userId so Firestore rules allow it for regular users
+export const subscribeToRegistrationByTokenAndUser = (eventId: string, token: string, userId: string, callback: (reg: Registration | null) => void) => {
+  const q = query(
+    getRegistrationsRef(eventId), 
+    where("token", "==", token),
+    where("userId", "==", userId)
+  );
   return onSnapshot(q, (querySnapshot) => {
     if (querySnapshot.empty) {
       callback(null);

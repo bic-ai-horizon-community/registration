@@ -17,8 +17,20 @@ service cloud.firestore {
       allow write: if isAdmin();
       
       match /registrations/{registrationId} {
-        // ONLY Admin OR the specific signed-in user who created the registration can READ
-        allow read: if isAdmin() || (
+        // GET (single document by ID):
+        // - Admin can read any registration
+        // - Signed-in user can read their OWN registration
+        allow get: if isAdmin() || (
+          request.auth != null && resource.data.userId == request.auth.uid
+        );
+        
+        // LIST (query across documents):
+        // - Admin can query all registrations
+        // - Signed-in user can ONLY query registrations where userId matches their own UID.
+        //   Firestore validates that the query constraints guarantee this.
+        //   e.g. where("userId", "==", currentUser.uid) is allowed
+        //   e.g. where("responses.email", "==", someEmail) is DENIED (no userId filter)
+        allow list: if isAdmin() || (
           request.auth != null && resource.data.userId == request.auth.uid
         );
         

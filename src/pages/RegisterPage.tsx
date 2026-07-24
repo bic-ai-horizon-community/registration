@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CalendarDays, Ticket, LogIn, AlertTriangle, LogOut } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/Card';
+import { CalendarDays, Ticket, AlertTriangle, LogOut, ArrowRight, Shield } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { registerAttendee, getRegistrationByUid } from '../firebase/db';
@@ -24,7 +23,6 @@ export const RegisterPage: React.FC = () => {
   
   const navigate = useNavigate();
 
-  // Load the active event
   useEffect(() => {
     const unsubscribe = subscribeToActiveEvent((data) => {
       setActiveEvent(data);
@@ -33,14 +31,12 @@ export const RegisterPage: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Pre-fill email if user is logged in
   useEffect(() => {
     if (user?.email && !responses['email']) {
       setResponses(prev => ({ ...prev, email: user.email! }));
     }
   }, [user]);
 
-  // Check if user already registered for this event
   useEffect(() => {
     const checkRegistration = async () => {
       if (user && activeEvent) {
@@ -57,7 +53,6 @@ export const RegisterPage: React.FC = () => {
         setExistingRegistration(null);
       }
     };
-    
     checkRegistration();
   }, [user, activeEvent]);
 
@@ -94,238 +89,311 @@ export const RegisterPage: React.FC = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      // Check domain restriction if set
+      // Inject Google email into any email-type fields (since they're locked/disabled)
+      const finalResponses = { ...responses };
+      for (const field of activeEvent.formFields) {
+        if (field.type === 'email' && user.email) {
+          finalResponses[field.id] = user.email;
+        }
+      }
+
       if (activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all') {
         const requiredDomain = activeEvent.allowedEmailDomain.toLowerCase().trim();
-        const userEmail = (user.email || '').toLowerCase().trim();
-        
-        // Find email in form responses or fallback to signed-in user email
-        const emailResponseField = activeEvent.formFields.find(f => f.type === 'email' || f.label.toLowerCase().includes('email'));
-        const formEmail = emailResponseField ? responses[emailResponseField.id] : undefined;
-        const emailToCheck = (formEmail || userEmail).toLowerCase().trim();
-
-        if (!emailToCheck.endsWith(`@${requiredDomain}`)) {
-          throw new Error(`Registration for "${activeEvent.name}" is restricted to college students (@${requiredDomain}). Please use your college email address.`);
+        if (!user.email?.toLowerCase().trim().endsWith(`@${requiredDomain}`)) {
+          throw new Error(`This event requires a @${requiredDomain} account.`);
         }
       }
 
       for (const field of activeEvent.formFields) {
-        if (field.required && !responses[field.id]) {
+        if (field.required && !finalResponses[field.id]) {
           throw new Error(`${field.label} is required`);
         }
       }
       
-      const { token } = await registerAttendee(activeEvent.id, responses, user.uid);
-      navigate('/success', { state: { token, eventId: activeEvent.id, email: responses['email'] || user.email } });
+      const { token } = await registerAttendee(activeEvent.id, finalResponses, user.uid);
+      navigate('/success', { state: { token, eventId: activeEvent.id, email: user.email } });
     } catch (err: any) {
-      setError(err.message || 'An error occurred during registration. Please try again.');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Loading state
   if (loadingEvent || authLoading || checkingRegistration) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#020817] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+      <div className="min-h-screen bg-[#030712] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="h-10 w-10 rounded-full border-2 border-brand-500/20 border-t-brand-500 animate-spin"></div>
+          </div>
+          <p className="text-sm text-gray-500 animate-fade-in">Loading event...</p>
+        </div>
       </div>
     );
   }
 
+  // No active event
   if (!activeEvent) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#020817] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center py-12 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <CalendarDays className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">No Active Event</h2>
-          <p className="text-gray-500 dark:text-gray-400">There are currently no events open for registration.</p>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!activeEvent.isRegistrationOpen) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-[#020817] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center py-12 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <CalendarDays className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">Registration Closed</h2>
-          <p className="text-gray-500 dark:text-gray-400">Registration for {activeEvent.name} is currently closed.</p>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-white dark:bg-[#020817] py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-      <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl">
-            {activeEvent.name}
-          </h1>
-          {activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all' ? (
-            <div className="pt-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
-                🎓 College Students Only (@{activeEvent.allowedEmailDomain})
-              </span>
-            </div>
-          ) : (
-            <div className="pt-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                🌐 Open to All Participants
-              </span>
-            </div>
-          )}
-          {activeEvent.description && (
-            <p className="text-lg font-medium text-gray-700 dark:text-gray-300 max-w-2xl mx-auto mt-4 mb-6 whitespace-pre-wrap">
-              {activeEvent.description}
-            </p>
-          )}
-          <p className="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
-            {existingRegistration 
-              ? "You're already on the list! See you there."
-              : !user 
-                ? "Sign in to secure your spot for this incredible experience."
-                : "Complete the form below to secure your spot."
-            }
+      <div className="min-h-screen bg-[#030712] flex items-center justify-center px-4">
+        <div className="text-center max-w-md animate-fade-in-up">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+            <CalendarDays className="w-8 h-8 text-gray-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">No Active Event</h2>
+          <p className="text-gray-400 text-base leading-relaxed">
+            Check back soon for upcoming events.
           </p>
         </div>
+      </div>
+    );
+  }
 
-        {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium text-center">
-            {error}
+  // Registration closed
+  if (!activeEvent.isRegistrationOpen) {
+    return (
+      <div className="min-h-screen bg-[#030712] flex items-center justify-center px-4">
+        <div className="text-center max-w-md animate-fade-in-up">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+            <CalendarDays className="w-8 h-8 text-gray-600" />
           </div>
-        )}
+          <h2 className="text-2xl font-bold text-white mb-3">Registration Closed</h2>
+          <p className="text-gray-400 text-base leading-relaxed">
+            Registration for <span className="text-white font-medium">{activeEvent.name}</span> has closed.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-        {!user ? (
-          <Card className="border border-gray-200 dark:border-gray-800 shadow-xl shadow-brand-500/5 dark:shadow-brand-900/10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl">
-            <CardContent className="p-8 sm:p-12 text-center flex flex-col items-center">
-              <div className="w-16 h-16 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center mb-6 text-brand-600 dark:text-brand-400">
-                <LogIn className="w-8 h-8 ml-1" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-50 mb-2">Sign In to Register</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm">
-                We require attendees to sign in with Google to prevent spam and allow you to easily access your ticket later.
-              </p>
-              <Button 
-                onClick={handleSignIn}
-                size="lg"
-                className="w-full sm:w-auto h-14 px-8 text-base font-semibold shadow-lg shadow-brand-500/25 flex items-center justify-center gap-3 bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Continue with Google
-              </Button>
-            </CardContent>
-          </Card>
-        ) : existingRegistration ? (
-          <Card className="border border-brand-200 dark:border-brand-900/50 shadow-xl shadow-brand-500/10 bg-brand-50/50 dark:bg-brand-950/20 backdrop-blur-xl">
-            <CardContent className="p-8 text-center flex flex-col items-center">
-              <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center mb-6 text-brand-600 dark:text-brand-400">
-                <Ticket className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">You're Registered!</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm">
-                You have already registered for {activeEvent.name}. You can view your ticket and QR code anytime.
-              </p>
-              <Link to="/success" state={{ token: existingRegistration.token, eventId: activeEvent.id, email: user.email }}>
-                <Button size="lg" className="px-8 h-12 shadow-md hover:shadow-lg transition-all">
-                  View My Ticket
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all' && !user.email?.toLowerCase().trim().endsWith(`@${activeEvent.allowedEmailDomain.toLowerCase().trim()}`) ? (
-          <Card className="border border-red-200 dark:border-red-900/50 shadow-xl shadow-red-500/10 bg-red-50/50 dark:bg-red-950/20 backdrop-blur-xl">
-            <CardContent className="p-8 text-center flex flex-col items-center">
-              <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mb-6 text-red-600 dark:text-red-400">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">College Account Required</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-sm">
-                This event is strictly for college students. You are signed in as <span className="font-semibold">{user.email}</span>, which is not a college email address.
-              </p>
-              <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-sm">
-                Please sign out and sign in using your <span className="font-semibold">@{activeEvent.allowedEmailDomain}</span> account.
-              </p>
-              <Button 
-                onClick={handleSignOut}
-                size="lg" 
-                variant="danger"
-                className="px-8 h-12 shadow-md hover:shadow-lg transition-all"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border border-gray-200 dark:border-gray-800 shadow-2xl shadow-brand-500/10 dark:shadow-brand-900/10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl">
-            <CardContent className="p-6 sm:p-10">
+  // Determine if event is college-only
+  const isCollegeOnly = activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all';
+  const isBlockedUser = isCollegeOnly && user && !user.email?.toLowerCase().trim().endsWith(`@${activeEvent.allowedEmailDomain!.toLowerCase().trim()}`);
 
+  return (
+    <div className="min-h-screen bg-[#030712]">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-brand-600/[0.04] blur-[120px]"></div>
+          <div className="absolute -top-[30%] -right-[15%] w-[50%] h-[50%] rounded-full bg-indigo-500/[0.03] blur-[100px]"></div>
+        </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {activeEvent.formFields.map((field: FormField) => (
-                  <div key={field.id} className="space-y-2">
-                    <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {field.label} {field.required && <span className="text-brand-500">*</span>}
-                    </label>
-                    {field.type === 'select' ? (
-                      <select
-                        id={field.id}
-                        required={field.required}
-                        value={responses[field.id] || ''}
-                        onChange={(e) => handleChange(field.id, e.target.value)}
-                        className="flex h-12 w-full rounded-xl border border-gray-300 bg-white dark:bg-gray-900 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:text-gray-50"
-                      >
-                        <option value="" disabled>Select an option</option>
-                        {field.options?.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    ) : field.type === 'textarea' ? (
-                      <textarea
-                        id={field.id}
-                        required={field.required}
-                        rows={4}
-                        value={responses[field.id] || ''}
-                        onChange={(e) => handleChange(field.id, e.target.value)}
-                        className="w-full p-3 text-base rounded-xl bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-gray-50 resize-y"
-                        placeholder={`Enter ${field.label.toLowerCase()} (e.g. 1 per line, up to 40 names)`}
-                      />
-                    ) : (
-                      <Input
-                        id={field.id}
-                        type={field.type}
-                        required={field.required}
-                        value={responses[field.id] || ''}
-                        onChange={(e) => handleChange(field.id, e.target.value)}
-                        className="h-12 text-base rounded-xl bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"
-                        placeholder={`Enter your ${field.label.toLowerCase()}`}
-                      />
-                    )}
+        <div className="relative max-w-2xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-8 sm:pb-12">
+          {/* Event Header */}
+          <div className="text-center mb-8 sm:mb-12 animate-fade-in-up">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-[1.1]">
+              {activeEvent.name}
+            </h1>
+            
+            {/* Tags row - only show for college-restricted events */}
+            {isCollegeOnly && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-4 sm:mt-5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-brand-500/10 text-brand-300 border border-brand-500/20">
+                  <Shield className="w-3 h-3" />
+                  College Students Only (@{activeEvent.allowedEmailDomain})
+                </span>
+              </div>
+            )}
+            
+            {activeEvent.description && (
+              <p className="text-base sm:text-lg text-gray-400 max-w-xl mx-auto mt-5 leading-relaxed whitespace-pre-wrap animate-fade-in animate-delay-100">
+                {activeEvent.description}
+              </p>
+            )}
+            
+            {!user && (
+              <p className="text-base text-gray-500 max-w-md mx-auto mt-4 animate-fade-in animate-delay-200">
+                Sign in to register.
+              </p>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm text-center animate-fade-in">
+              {error}
+            </div>
+          )}
+
+          {/* ============================================ */}
+          {/* STATE: Not signed in                         */}
+          {/* ============================================ */}
+          {!user ? (
+            <div className="animate-fade-in-up animate-delay-200">
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden">
+                <div className="p-8 sm:p-12 flex flex-col items-center text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
                   </div>
-                ))}
-                <div className="pt-4">
-                  <Button
-                    type="submit"
-                    className="w-full h-14 text-lg font-semibold rounded-xl shadow-lg shadow-brand-500/25 transition-all hover:scale-[1.02]"
-                    isLoading={isSubmitting}
+                  <h3 className="text-xl font-bold text-white mb-2">Sign in to continue</h3>
+                  <p className="text-gray-400 mb-8 max-w-sm text-sm leading-relaxed">
+                    Sign in with Google to verify your identity.
+                  </p>
+                  <button 
+                    onClick={handleSignIn}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-3 h-12 px-8 rounded-xl text-sm font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-all active:scale-[0.98] shadow-lg shadow-white/10"
                   >
-                    Complete Registration
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Continue with Google
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          /* ============================================ */
+          /* STATE: Already registered                    */
+          /* ============================================ */
+          ) : existingRegistration ? (
+            <div className="animate-fade-in-up animate-delay-200">
+              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/[0.04] backdrop-blur-xl overflow-hidden">
+                <div className="p-8 sm:p-12 text-center flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6">
+                    <Ticket className="w-7 h-7 text-brand-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">You're Registered</h3>
+                  <p className="text-gray-400 mb-8 max-w-sm text-sm leading-relaxed">
+                    Your ticket for {activeEvent.name} is ready.
+                  </p>
+                  <Link to="/success" state={{ token: existingRegistration.token, eventId: activeEvent.id, email: user.email }}>
+                    <Button size="lg" className="px-8 h-12 rounded-xl shadow-lg shadow-brand-500/20 transition-all hover:shadow-brand-500/30 active:scale-[0.98]">
+                      View My Ticket
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+          /* ============================================ */
+          /* STATE: Blocked (non-college user)            */
+          /* ============================================ */
+          ) : isBlockedUser ? (
+            <div className="animate-fade-in-up animate-delay-200">
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] backdrop-blur-xl overflow-hidden">
+                <div className="p-8 sm:p-12 text-center flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+                    <AlertTriangle className="w-7 h-7 text-red-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">College Account Required</h3>
+                  <p className="text-gray-400 mb-6 max-w-sm text-sm leading-relaxed">
+                    You're signed in as <span className="text-white font-medium">{user.email}</span>. This event requires a <span className="text-white font-medium">@{activeEvent.allowedEmailDomain}</span> account.
+                  </p>
+                  <Button 
+                    onClick={handleSignOut}
+                    size="lg" 
+                    variant="danger"
+                    className="px-8 h-12 rounded-xl shadow-lg shadow-red-500/20 transition-all active:scale-[0.98]"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-        <p className="text-center text-sm text-gray-400">
-          By registering, you agree to our community guidelines.
-        </p>
+              </div>
+            </div>
+
+          /* ============================================ */
+          /* STATE: Registration form                     */
+          /* ============================================ */
+          ) : (
+            <div className="animate-fade-in-up animate-delay-200">
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden">
+                {/* Form header */}
+                <div className="px-6 sm:px-10 pt-8 sm:pt-10 pb-0">
+                  <h3 className="text-lg font-bold text-white mb-1">Registration Form</h3>
+                  <p className="text-sm text-gray-500">Fill in your details below.</p>
+                </div>
+
+                {/* Form body */}
+                <div className="p-6 sm:p-10 pt-6">
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {activeEvent.formFields.map((field: FormField, index: number) => {
+                      const isEmailField = field.type === 'email';
+                      const isLocked = isEmailField && !!user;
+                      const fieldValue = isLocked ? (user.email || '') : (responses[field.id] || '');
+                      
+                      return (
+                      <div key={field.id} className={`space-y-2 animate-fade-in`} style={{ animationDelay: `${index * 60}ms` }}>
+                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-300">
+                          {field.label}
+                          {field.required && <span className="text-brand-400 ml-1">*</span>}
+                        </label>
+                        {field.type === 'select' ? (
+                          <select
+                            id={field.id}
+                            required={field.required}
+                            value={responses[field.id] || ''}
+                            onChange={(e) => handleChange(field.id, e.target.value)}
+                            className="flex h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 placeholder:text-gray-600"
+                          >
+                            <option value="" disabled>Select an option</option>
+                            {field.options?.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : field.type === 'textarea' ? (
+                          <textarea
+                            id={field.id}
+                            required={field.required}
+                            rows={4}
+                            value={responses[field.id] || ''}
+                            onChange={(e) => handleChange(field.id, e.target.value)}
+                            className="w-full p-3 text-sm rounded-xl bg-white/[0.03] border border-white/[0.08] text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 placeholder:text-gray-600 resize-y"
+                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                          />
+                        ) : (
+                          <div className="relative">
+                            <Input
+                              id={field.id}
+                              type={field.type}
+                              required={field.required}
+                              value={fieldValue}
+                              onChange={(e) => handleChange(field.id, e.target.value)}
+                              disabled={isLocked}
+                              className={`h-11 text-sm rounded-xl bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 focus:ring-brand-500/50 focus:border-brand-500/50 ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              placeholder={`Enter your ${field.label.toLowerCase()}`}
+                            />
+                            {isLocked && (
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">From Google</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      );
+                    })}
+                    
+                    <div className="pt-4">
+                      <Button
+                        type="submit"
+                        className="w-full h-12 text-sm font-semibold rounded-xl shadow-lg shadow-brand-500/20 transition-all hover:shadow-brand-500/30 active:scale-[0.98]"
+                        isLoading={isSubmitting}
+                      >
+                        Complete Registration
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <p className="text-center text-xs text-gray-600 mt-6">
+                By registering, you agree to our community guidelines.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
