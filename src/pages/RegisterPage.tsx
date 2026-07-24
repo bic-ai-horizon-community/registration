@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CalendarDays, Ticket, LogIn } from 'lucide-react';
+import { CalendarDays, Ticket, LogIn, AlertTriangle, LogOut } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { registerAttendee, getRegistrationByUid } from '../firebase/db';
 import { subscribeToActiveEvent } from '../firebase/events';
 import { useAuth } from '../hooks/useAuth';
-import { signInWithGoogle } from '../firebase/auth';
+import { signInWithGoogle, logoutUser } from '../firebase/auth';
 import type { Event, FormField, Registration } from '../types';
 
 export const RegisterPage: React.FC = () => {
@@ -71,6 +71,15 @@ export const RegisterPage: React.FC = () => {
     } catch (err) {
       console.error("Sign in failed", err);
       setError("Failed to sign in. Please try again.");
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logoutUser();
+      setResponses({});
+    } catch (err) {
+      console.error("Sign out failed", err);
     }
   };
 
@@ -228,6 +237,30 @@ export const RegisterPage: React.FC = () => {
                   View My Ticket
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+        ) : activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all' && !user.email?.toLowerCase().trim().endsWith(`@${activeEvent.allowedEmailDomain.toLowerCase().trim()}`) ? (
+          <Card className="border border-red-200 dark:border-red-900/50 shadow-xl shadow-red-500/10 bg-red-50/50 dark:bg-red-950/20 backdrop-blur-xl">
+            <CardContent className="p-8 text-center flex flex-col items-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mb-6 text-red-600 dark:text-red-400">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">College Account Required</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-sm">
+                This event is strictly for college students. You are signed in as <span className="font-semibold">{user.email}</span>, which is not a college email address.
+              </p>
+              <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-sm">
+                Please sign out and sign in using your <span className="font-semibold">@{activeEvent.allowedEmailDomain}</span> account.
+              </p>
+              <Button 
+                onClick={handleSignOut}
+                size="lg" 
+                variant="danger"
+                className="px-8 h-12 shadow-md hover:shadow-lg transition-all"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
             </CardContent>
           </Card>
         ) : (
