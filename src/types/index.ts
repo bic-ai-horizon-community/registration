@@ -16,6 +16,7 @@ export interface Event {
   name: string;
   isActive: boolean;
   isRegistrationOpen: boolean;
+  allowedEmailDomain?: string; // '' or 'all' for anyone, or 'bicnepal.edu.np' for college only
   description?: string;
   formFields: FormField[];
   createdAt: number;

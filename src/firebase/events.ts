@@ -56,6 +56,11 @@ export const setActiveEvent = async (eventId: string): Promise<void> => {
   await batch.commit();
 };
 
+export const setEventInactive = async (eventId: string): Promise<void> => {
+  const docRef = doc(db, EVENTS_COLLECTION, eventId);
+  await updateDoc(docRef, { isActive: false });
+};
+
 export const updateEvent = async (eventId: string, data: Partial<Event>): Promise<void> => {
   const docRef = doc(db, EVENTS_COLLECTION, eventId);
   const { id, ...updateData } = data as any;

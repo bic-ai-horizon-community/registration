@@ -4,7 +4,7 @@ import { CalendarDays, Plus, CheckCircle2, Circle, Eye, Trash2, Edit2, X, Check 
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { createEvent, setActiveEvent, deleteEvent, updateEvent } from '../firebase/events';
+import { createEvent, setActiveEvent, deleteEvent, updateEvent, setEventInactive } from '../firebase/events';
 import { useAdminEvent } from '../contexts/AdminEventContext';
 
 export const AdminEventsPage: React.FC = () => {
@@ -43,6 +43,14 @@ export const AdminEventsPage: React.FC = () => {
       await setActiveEvent(eventId);
     } catch (err) {
       console.error('Failed to set active event:', err);
+    }
+  };
+
+  const handleSetInactive = async (eventId: string) => {
+    try {
+      await setEventInactive(eventId);
+    } catch (err) {
+      console.error('Failed to set event inactive:', err);
     }
   };
 
@@ -249,11 +257,11 @@ export const AdminEventsPage: React.FC = () => {
                 ) : (
                   <Button 
                     variant="secondary" 
-                    className="w-full opacity-50 cursor-default hover:bg-secondary"
-                    disabled
+                    className="w-full text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    onClick={() => handleSetInactive(event.id)}
                   >
                     <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-                    Currently Active
+                    Active (Click to Deactivate)
                   </Button>
                 )}
               </div>

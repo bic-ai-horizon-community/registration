@@ -85,6 +85,21 @@ export const RegisterPage: React.FC = () => {
     setError('');
     setIsSubmitting(true);
     try {
+      // Check domain restriction if set
+      if (activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all') {
+        const requiredDomain = activeEvent.allowedEmailDomain.toLowerCase().trim();
+        const userEmail = (user.email || '').toLowerCase().trim();
+        
+        // Find email in form responses or fallback to signed-in user email
+        const emailResponseField = activeEvent.formFields.find(f => f.type === 'email' || f.label.toLowerCase().includes('email'));
+        const formEmail = emailResponseField ? responses[emailResponseField.id] : undefined;
+        const emailToCheck = (formEmail || userEmail).toLowerCase().trim();
+
+        if (!emailToCheck.endsWith(`@${requiredDomain}`)) {
+          throw new Error(`Registration for "${activeEvent.name}" is restricted to college students (@${requiredDomain}). Please use your college email address.`);
+        }
+      }
+
       for (const field of activeEvent.formFields) {
         if (field.required && !responses[field.id]) {
           throw new Error(`${field.label} is required`);
@@ -139,6 +154,19 @@ export const RegisterPage: React.FC = () => {
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl">
             {activeEvent.name}
           </h1>
+          {activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all' ? (
+            <div className="pt-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                🎓 College Students Only (@{activeEvent.allowedEmailDomain})
+              </span>
+            </div>
+          ) : (
+            <div className="pt-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                🌐 Open to All Participants
+              </span>
+            </div>
+          )}
           {activeEvent.description && (
             <p className="text-lg font-medium text-gray-700 dark:text-gray-300 max-w-2xl mx-auto mt-4 mb-6 whitespace-pre-wrap">
               {activeEvent.description}

@@ -116,6 +116,23 @@ export const AdminSettingsPage: React.FC = () => {
             </label>
           </div>
 
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800 gap-4">
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-gray-50">Participation Eligibility</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Control who can sign up for this event based on their email address domain.
+              </p>
+            </div>
+            <select
+              value={activeEvent.allowedEmailDomain || ''}
+              onChange={(e) => updateEvent(activeEvent.id, { allowedEmailDomain: e.target.value })}
+              className="h-10 rounded-md border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-50 font-medium"
+            >
+              <option value="">Anyone can participate (Open to All)</option>
+              <option value="bicnepal.edu.np">College Students Only (@bicnepal.edu.np)</option>
+            </select>
+          </div>
+
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800">
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-50">Active Event Status</h3>

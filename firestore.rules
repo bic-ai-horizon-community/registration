@@ -2,33 +2,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Admin check: Any authenticated Firebase Auth user (or specifically admin email)
+    // Admin check: Admin logs in with Email/Password (provider == 'password') or specific admin email
     function isAdmin() {
-      return request.auth != null;
+      return request.auth != null && (
+        request.auth.token.firebase.sign_in_provider == 'password' ||
+        request.auth.token.email == 'aihorizon@admin.com'
+      );
     }
 
     // Events Collection
     match /events/{eventId} {
+      // Event info (name, form fields, active status) is readable by everyone to display registration form
       allow read: if true;
       allow write: if isAdmin();
       
       match /registrations/{registrationId} {
-        // Anyone can read (needed for success page, edit page, QR lookup)
-        allow read: if true;
+        // ONLY Admin OR the specific signed-in user who created the registration can READ
+        allow read: if isAdmin() || (
+          request.auth != null && resource.data.userId == request.auth.uid
+        );
         
-        // Anyone can submit a registration form
-        allow create: if true;
+        // Signed-in users can create a registration attached to their own UID
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
         
-        // Admin can update anything (e.g. mark attendance).
-        // Unauthenticated attendees can ONLY update their details IF they have NOT been marked present yet,
-        // and they CANNOT modify their own attendance status (present / checkedInAt).
+        // Admin can update anything.
+        // Signed-in user can ONLY update their OWN details IF present == false,
+        // and they CANNOT modify their attendance status (present / checkedInAt).
         allow update: if isAdmin() || (
+          request.auth != null &&
+          resource.data.userId == request.auth.uid &&
           resource.data.present == false &&
           request.resource.data.present == false &&
           request.resource.data.checkedInAt == resource.data.checkedInAt
         );
         
-        // Only admin can delete registrations
+        // ONLY Admin can delete registrations
         allow delete: if isAdmin();
       }
     }
