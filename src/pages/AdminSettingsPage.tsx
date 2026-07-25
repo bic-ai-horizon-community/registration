@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Trash2, GripVertical, Save, Circle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -11,6 +11,9 @@ export const AdminSettingsPage: React.FC = () => {
   const { selectedEvent: activeEvent } = useAdminEvent();
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragRef = useRef<number | null>(null);
 
   const handleToggleRegistration = () => {
     if (!activeEvent) return;
@@ -45,6 +48,34 @@ export const AdminSettingsPage: React.FC = () => {
       return field;
     });
     updateEvent(activeEvent.id, { formFields: updatedFields });
+  };
+
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+    dragRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragRef.current === index) return;
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    if (!activeEvent || dragRef.current === null || dragRef.current === index) return;
+    const reordered = [...activeEvent.formFields];
+    const [moved] = reordered.splice(dragRef.current, 1);
+    reordered.splice(index, 0, moved);
+    updateEvent(activeEvent.id, { formFields: reordered });
+    setDragIndex(null);
+    setDragOverIndex(null);
+    dragRef.current = null;
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+    dragRef.current = null;
   };
 
   const handleSave = async () => {
@@ -175,9 +206,26 @@ export const AdminSettingsPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {activeEvent.formFields.map((field) => (
-              <div key={field.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg group">
-                <div className="cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hidden sm:block">
+            {activeEvent.formFields.map((field, index) => (
+              <div
+                key={field.id}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={() => handleDrop(index)}
+                onDragEnd={handleDragEnd}
+                className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white dark:bg-gray-900 border rounded-lg group transition-all duration-150 ${
+                  dragOverIndex === index && dragIndex !== index
+                    ? 'border-brand-500 ring-2 ring-brand-400 ring-offset-1 dark:ring-offset-gray-950 scale-[1.01]'
+                    : dragIndex === index
+                    ? 'border-gray-200 dark:border-gray-800 opacity-40'
+                    : 'border-gray-200 dark:border-gray-800'
+                }`}
+              >
+                <div
+                  className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hidden sm:block select-none"
+                  title="Drag to reorder"
+                >
                   <GripVertical className="w-5 h-5" />
                 </div>
                 
