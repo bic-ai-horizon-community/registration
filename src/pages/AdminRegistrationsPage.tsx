@@ -8,7 +8,11 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 
-export const AdminRegistrationsPage: React.FC = () => {
+interface AdminRegistrationsPageProps {
+  isScannerOnly?: boolean;
+}
+
+export const AdminRegistrationsPage: React.FC<AdminRegistrationsPageProps> = ({ isScannerOnly = false }) => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const { selectedEvent: activeEvent } = useAdminEvent();
   const [loading, setLoading] = useState(true);
@@ -191,15 +195,17 @@ export const AdminRegistrationsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEdit(reg)}
-                        className="text-gray-500 hover:text-brand-600 dark:hover:text-brand-400"
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
+                      {!isScannerOnly && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(reg)}
+                          className="text-gray-500 hover:text-brand-600 dark:hover:text-brand-400"
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

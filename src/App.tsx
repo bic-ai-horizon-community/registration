@@ -5,6 +5,7 @@ import { AdminEventProvider } from './contexts/AdminEventContext';
 // Layouts
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
+import { ScannerLayout } from './components/ScannerLayout';
 
 // Pages
 import { RegisterPage } from './pages/RegisterPage';
@@ -43,6 +44,17 @@ function AppRoutes() {
         <Route path="scanner" element={<AdminScannerPage />} />
         <Route path="registrations" element={<AdminRegistrationsPage />} />
         <Route path="settings" element={<AdminSettingsPage />} />
+      </Route>
+
+      {/* Protected Scanner Routes */}
+      <Route path="/scanner" element={
+        <AdminEventProvider>
+          <ScannerLayout />
+        </AdminEventProvider>
+      }>
+        <Route index element={<Navigate to="/scanner/scan" replace />} />
+        <Route path="scan" element={<AdminScannerPage />} />
+        <Route path="registrations" element={<AdminRegistrationsPage isScannerOnly={true} />} />
       </Route>
 
       {/* Catch all */}
