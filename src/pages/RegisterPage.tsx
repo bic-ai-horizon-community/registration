@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { CalendarDays, Ticket, AlertTriangle, LogOut, ArrowRight, Shield } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { SponsorBar } from '../components/ui/SponsorBar';
 import { registerAttendee, getRegistrationByUid } from '../firebase/db';
 import { subscribeToActiveEvent } from '../firebase/events';
@@ -335,18 +336,14 @@ export const RegisterPage: React.FC = () => {
                           {field.required && <span className="text-brand-400 ml-1">*</span>}
                         </label>
                         {field.type === 'select' ? (
-                          <select
+                          <CustomSelect
                             id={field.id}
-                            required={field.required}
                             value={responses[field.id] || ''}
-                            onChange={(e) => handleChange(field.id, e.target.value)}
-                            className="flex h-11 w-full rounded-md border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:text-gray-50"
-                          >
-                            <option value="" disabled style={{ backgroundColor: '#111827', color: '#6b7280' }}>Select an option</option>
-                            {field.options?.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
+                            onChange={(val) => handleChange(field.id, val)}
+                            options={field.options || []}
+                            placeholder="Select an option"
+                            required={field.required}
+                          />
                         ) : field.type === 'textarea' ? (
                           <textarea
                             id={field.id}
