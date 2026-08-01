@@ -308,11 +308,15 @@ export const AdminScannerPage: React.FC = () => {
                     <p className="text-gray-500 text-sm mt-0.5">{getPrimaryEmail()}</p>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 space-y-2.5">
+                  <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 space-y-3">
                     {activeEvent.formFields.filter(f => f.id !== 'fullName' && f.id !== 'email').map(field => (
-                      <div key={field.id} className="flex justify-between gap-4">
-                        <span className="text-gray-500 text-sm font-medium shrink-0">{field.label}</span>
-                        <span className="text-gray-900 dark:text-gray-100 text-sm font-semibold text-right">{attendee.responses[field.id] || '—'}</span>
+                      <div key={field.id} className="min-w-0">
+                        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-0.5 truncate">
+                          {field.label}
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
+                          {attendee.responses[field.id] || '—'}
+                        </p>
                       </div>
                     ))}
                   </div>
