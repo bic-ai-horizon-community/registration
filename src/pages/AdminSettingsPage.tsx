@@ -14,6 +14,8 @@ export const AdminSettingsPage: React.FC = () => {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragRef = useRef<number | null>(null);
+  // Local raw text for the options input so spaces aren't eaten on every keystroke
+  const [localOptions, setLocalOptions] = useState<Record<string, string>>({});
 
   const handleToggleRegistration = () => {
     if (!activeEvent) return;
@@ -278,11 +280,23 @@ export const AdminSettingsPage: React.FC = () => {
                 {field.type === 'select' && (
                   <div className="w-full sm:w-auto sm:ml-10 mt-2 sm:mt-0 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md border border-gray-100 dark:border-gray-800">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Dropdown Options (comma separated)</label>
-                    <Input 
-                      value={(field.options || []).join(', ')}
-                      onChange={(e) => handleUpdateField(field.id, 'options', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="Option 1, Option 2, Option 3"
+                    <Input
+                      value={localOptions[field.id] ?? (field.options || []).join(', ')}
+                      onChange={(e) =>
+                        setLocalOptions(prev => ({ ...prev, [field.id]: e.target.value }))
+                      }
+                      onBlur={(e) => {
+                        const parsed = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                        handleUpdateField(field.id, 'options', parsed);
+                        setLocalOptions(prev => {
+                          const next = { ...prev };
+                          delete next[field.id];
+                          return next;
+                        });
+                      }}
+                      placeholder="+2 College, BIC, Other"
                     />
+                    <p className="text-xs text-gray-400 mt-1">Separate options with commas. Press Tab or click away to save.</p>
                   </div>
                 )}
               </div>

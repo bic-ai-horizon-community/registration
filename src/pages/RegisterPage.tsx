@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { CalendarDays, Ticket, AlertTriangle, LogOut, ArrowRight, Shield } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { SponsorBar } from '../components/ui/SponsorBar';
 import { registerAttendee, getRegistrationByUid } from '../firebase/db';
 import { subscribeToActiveEvent } from '../firebase/events';
 import { useAuth } from '../hooks/useAuth';
@@ -203,7 +204,10 @@ export const RegisterPage: React.FC = () => {
                 {activeEvent.description}
               </p>
             )}
-            
+
+            {/* Sponsor logos */}
+            <SponsorBar eventName={activeEvent.name} />
+
             {!user && (
               <p className="text-base text-gray-500 max-w-md mx-auto mt-4 animate-fade-in animate-delay-200">
                 Sign in to register.
@@ -336,9 +340,9 @@ export const RegisterPage: React.FC = () => {
                             required={field.required}
                             value={responses[field.id] || ''}
                             onChange={(e) => handleChange(field.id, e.target.value)}
-                            className="flex h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 placeholder:text-gray-600"
+                            className="flex h-11 w-full rounded-md border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:text-gray-50"
                           >
-                            <option value="" disabled>Select an option</option>
+                            <option value="" disabled style={{ backgroundColor: '#111827', color: '#6b7280' }}>Select an option</option>
                             {field.options?.map(opt => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
