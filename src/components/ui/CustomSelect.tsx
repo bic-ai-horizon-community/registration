@@ -92,12 +92,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1 w-full rounded-xl border border-white/[0.10]
-                     bg-gray-950
-                     shadow-xl shadow-black/40
-                     max-h-56 overflow-y-auto
-                     animate-fade-in"
-          style={{ animationDuration: '0.12s' }}
+          className="absolute z-50 mt-1 w-full rounded-xl border border-white/[0.12] max-h-56 overflow-y-auto shadow-2xl"
+          style={{
+            background: '#0f1117',
+            animationDuration: '0.12s',
+          }}
         >
           {options.map(opt => (
             <li
@@ -105,11 +104,14 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               role="option"
               aria-selected={value === opt}
               onClick={() => { onChange(opt); setOpen(false); }}
-              className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer select-none
-                text-gray-200
-                hover:bg-white/[0.07] hover:text-white
+              style={value === opt ? { background: 'rgba(99,102,241,0.15)' } : undefined}
+              className={`flex items-center justify-between px-4 py-3 text-sm cursor-pointer select-none
                 transition-colors
-                ${value === opt ? 'bg-brand-500/10 text-brand-300 font-medium' : ''}`}
+                ${value === opt
+                  ? 'text-brand-300 font-medium'
+                  : 'text-gray-200 hover:text-white'}`}
+              onMouseEnter={e => { if (value !== opt) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={e => { if (value !== opt) (e.currentTarget as HTMLElement).style.background = ''; }}
             >
               {opt}
               {value === opt && <Check className="w-4 h-4 shrink-0 text-brand-400" />}
