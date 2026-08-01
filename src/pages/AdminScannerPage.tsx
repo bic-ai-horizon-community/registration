@@ -25,14 +25,16 @@ export const AdminScannerPage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const lastScanned = useRef<string>('');
 
-  // Load available cameras on mount
   useEffect(() => {
     Html5Qrcode.getCameras()
       .then((devices) => {
         if (devices && devices.length) {
           setCameras(devices);
-          // Prefer back camera on mobile
-          const back = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear') || d.label.toLowerCase().includes('environment'));
+          const back = devices.find(d =>
+            d.label.toLowerCase().includes('back') ||
+            d.label.toLowerCase().includes('rear') ||
+            d.label.toLowerCase().includes('environment')
+          );
           setSelectedCamera(back ? back.id : devices[0].id);
         }
       })
@@ -54,11 +56,7 @@ export const AdminScannerPage: React.FC = () => {
   const startScanner = useCallback(async (cameraId: string) => {
     if (!cameraId) return;
     setScannerError(null);
-
-    // Stop any existing instance first
-    if (scannerInstanceRef.current) {
-      await stopScanner();
-    }
+    if (scannerInstanceRef.current) await stopScanner();
 
     try {
       const html5Qrcode = new Html5Qrcode('qr-video-region', {
@@ -66,7 +64,6 @@ export const AdminScannerPage: React.FC = () => {
         verbose: false,
       });
       scannerInstanceRef.current = html5Qrcode;
-
       await html5Qrcode.start(
         cameraId,
         { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
@@ -85,7 +82,6 @@ export const AdminScannerPage: React.FC = () => {
     }
   }, [stopScanner]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => { stopScanner(); };
   }, [stopScanner]);
@@ -110,7 +106,7 @@ export const AdminScannerPage: React.FC = () => {
     } catch (_) { /* raw token */ }
 
     if (qrEventId !== activeEvent.id) {
-      setError(`This QR belongs to a different event.`);
+      setError('This QR belongs to a different event.');
       setLoading(false);
       return;
     }
@@ -174,12 +170,9 @@ export const AdminScannerPage: React.FC = () => {
 
       {/* Scanner Card */}
       <Card className="overflow-hidden shadow-xl border-brand-100 dark:border-gray-800">
-        {/* Camera Viewport */}
         <div className="relative bg-black" style={{ minHeight: 280 }}>
-          {/* This div is where Html5Qrcode mounts the video */}
           <div id="qr-video-region" className="w-full" />
 
-          {/* Overlay when not scanning */}
           {!isScanning && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950/90 gap-3">
               <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center">
@@ -189,23 +182,19 @@ export const AdminScannerPage: React.FC = () => {
             </div>
           )}
 
-          {/* Scanning aim overlay */}
           {isScanning && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-52 h-52 relative">
-                {/* Corner markers */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-400 rounded-tl-lg" />
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-400 rounded-tr-lg" />
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-400 rounded-bl-lg" />
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-400 rounded-br-lg" />
-                {/* Scan line */}
                 <div className="absolute inset-x-2 top-0 h-0.5 bg-brand-400/70 animate-[scan_2s_ease-in-out_infinite]" />
               </div>
             </div>
           )}
         </div>
 
-        {/* Controls */}
         <CardContent className="p-4 space-y-3 bg-gray-50 dark:bg-gray-900/60">
           {scannerError && (
             <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-200 dark:border-red-800">
@@ -214,7 +203,6 @@ export const AdminScannerPage: React.FC = () => {
             </div>
           )}
 
-          {/* Camera selector */}
           {cameras.length > 1 && (
             <div className="flex items-center gap-2">
               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Camera</label>
@@ -231,7 +219,6 @@ export const AdminScannerPage: React.FC = () => {
             </div>
           )}
 
-          {/* Start / Stop buttons */}
           <div className="flex gap-2">
             {!isScanning ? (
               <Button
@@ -266,15 +253,13 @@ export const AdminScannerPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Attendee Result Modal */}
+      {/* ── Scan Result Modal ── */}
       {(loading || attendee || error) && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm">
-          <div
-            className="bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md flex flex-col"
-            style={{ maxHeight: '82dvh' }}
-          >
-            {/* ── Header ── always visible */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
               <h3 className="font-bold text-lg text-gray-900 dark:text-white">Scan Result</h3>
               <button
                 onClick={resetModal}
@@ -284,10 +269,9 @@ export const AdminScannerPage: React.FC = () => {
               </button>
             </div>
 
-            {/* ── Body ── scrollable, constrained between header and footer */}
-            <div className="overflow-y-auto" style={{ flex: '1 1 0', minHeight: 0 }}>
+            {/* Body — explicit max-height so content is always visible */}
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(75dvh - 130px)' }}>
 
-              {/* Loading */}
               {loading && (
                 <div className="flex flex-col items-center py-12 gap-3">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
@@ -295,7 +279,6 @@ export const AdminScannerPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Error */}
               {!loading && error && (
                 <div className="flex flex-col items-center py-10 px-5 text-center gap-4">
                   <div className="w-16 h-16 bg-red-50 dark:bg-red-900/30 rounded-full flex items-center justify-center">
@@ -308,17 +291,13 @@ export const AdminScannerPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Attendee info */}
               {!loading && attendee && activeEvent && (
                 <div className="p-5 space-y-4">
-
-                  {/* Name + email */}
                   <div className="text-center pb-1">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{getPrimaryName()}</h2>
                     <p className="text-gray-500 text-sm mt-0.5 break-all">{getPrimaryEmail()}</p>
                   </div>
 
-                  {/* Fields */}
                   <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl divide-y divide-gray-100 dark:divide-gray-700/50">
                     {activeEvent.formFields
                       .filter(f => f.id !== 'fullName' && f.id !== 'email')
@@ -331,22 +310,19 @@ export const AdminScannerPage: React.FC = () => {
                               {field.label}
                             </p>
                             {isLong ? (
-                              <div className="max-h-28 overflow-y-auto rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                              <div className="max-h-24 overflow-y-auto rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2">
                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words leading-relaxed">
                                   {val}
                                 </p>
                               </div>
                             ) : (
-                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
-                                {val}
-                              </p>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">{val}</p>
                             )}
                           </div>
                         );
                       })}
                   </div>
 
-                  {/* Status */}
                   <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800">
                     <span className="text-gray-500 text-sm font-medium">Status</span>
                     {attendee.present ? (
@@ -377,9 +353,9 @@ export const AdminScannerPage: React.FC = () => {
               )}
             </div>
 
-            {/* ── Footer ── always pinned at bottom */}
+            {/* Footer — always visible */}
             {!loading && (
-              <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex gap-2 shrink-0">
+              <div className="px-5 pt-4 pb-20 sm:pb-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex gap-2">
                 {attendee && !attendee.present ? (
                   <Button onClick={handleMarkPresent} variant="success" className="flex-1 h-11 font-semibold">
                     <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -395,6 +371,7 @@ export const AdminScannerPage: React.FC = () => {
           </div>
         </div>
       )}
+
       <style>{`
         @keyframes scan {
           0% { top: 0; opacity: 1; }
