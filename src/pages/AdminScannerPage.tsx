@@ -268,10 +268,11 @@ export const AdminScannerPage: React.FC = () => {
 
       {/* Attendee Result Modal */}
       {(loading || attendee || error) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md flex flex-col max-h-[92vh] sm:max-h-[88vh]">
 
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+            {/* ── Header ── always visible */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
               <h3 className="font-bold text-lg text-gray-900 dark:text-white">Scan Result</h3>
               <button
                 onClick={resetModal}
@@ -281,7 +282,10 @@ export const AdminScannerPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto flex-1">
+            {/* ── Body ── scrollable */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+
+              {/* Loading */}
               {loading && (
                 <div className="flex flex-col items-center py-12 gap-3">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
@@ -289,8 +293,9 @@ export const AdminScannerPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Error */}
               {!loading && error && (
-                <div className="flex flex-col items-center py-8 text-center gap-4">
+                <div className="flex flex-col items-center py-10 px-5 text-center gap-4">
                   <div className="w-16 h-16 bg-red-50 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                     <AlertCircle className="w-8 h-8 text-red-500" />
                   </div>
@@ -301,26 +306,46 @@ export const AdminScannerPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Attendee info */}
               {!loading && attendee && activeEvent && (
-                <div className="space-y-4">
-                  <div className="text-center pb-2">
+                <div className="p-5 space-y-4">
+
+                  {/* Name + email */}
+                  <div className="text-center pb-1">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{getPrimaryName()}</h2>
-                    <p className="text-gray-500 text-sm mt-0.5">{getPrimaryEmail()}</p>
+                    <p className="text-gray-500 text-sm mt-0.5 break-all">{getPrimaryEmail()}</p>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 space-y-3">
-                    {activeEvent.formFields.filter(f => f.id !== 'fullName' && f.id !== 'email').map(field => (
-                      <div key={field.id} className="min-w-0">
-                        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-0.5 truncate">
-                          {field.label}
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
-                          {attendee.responses[field.id] || '—'}
-                        </p>
-                      </div>
-                    ))}
+                  {/* Fields */}
+                  <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl divide-y divide-gray-100 dark:divide-gray-700/50">
+                    {activeEvent.formFields
+                      .filter(f => f.id !== 'fullName' && f.id !== 'email')
+                      .map(field => {
+                        const val = attendee.responses[field.id] || '—';
+                        const isLong = field.type === 'textarea' || val.length > 80;
+                        return (
+                          <div key={field.id} className="px-4 py-3 min-w-0">
+                            <p className="text-xs font-semibold tracking-wide uppercase text-gray-400 dark:text-gray-500 mb-1">
+                              {field.label}
+                            </p>
+                            {isLong ? (
+                              /* Scrollable box for long/referral values */
+                              <div className="max-h-28 overflow-y-auto rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words leading-relaxed">
+                                  {val}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
+                                {val}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
 
+                  {/* Status */}
                   <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800">
                     <span className="text-gray-500 text-sm font-medium">Status</span>
                     {attendee.present ? (
@@ -351,8 +376,9 @@ export const AdminScannerPage: React.FC = () => {
               )}
             </div>
 
+            {/* ── Footer ── always pinned */}
             {!loading && (
-              <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex gap-2">
+              <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex gap-2 shrink-0">
                 {attendee && !attendee.present ? (
                   <Button onClick={handleMarkPresent} variant="success" className="flex-1 h-11 font-semibold">
                     <CheckCircle2 className="w-4 h-4 mr-2" />
