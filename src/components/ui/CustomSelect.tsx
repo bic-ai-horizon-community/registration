@@ -73,13 +73,14 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         aria-haspopup="listbox"
         onKeyDown={handleKeyDown}
         onClick={() => setOpen(o => !o)}
-        className={`flex items-center justify-between w-full h-11 px-4 rounded-md border text-sm transition-all
-          bg-white dark:bg-gray-900
-          border-gray-300 dark:border-gray-700
-          text-gray-900 dark:text-gray-50
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
-          ${open ? 'ring-2 ring-brand-500 border-brand-500' : ''}
-          ${!value ? 'text-gray-400 dark:text-gray-500' : ''}`}
+        className={`flex items-center justify-between w-full h-11 px-4 rounded-xl border text-sm transition-all
+          bg-white/[0.05]
+          border-white/[0.08]
+          text-white
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50
+          hover:bg-white/[0.08] hover:border-white/[0.12]
+          ${open ? 'ring-2 ring-brand-500/50 border-brand-500/50 bg-white/[0.08]' : ''}
+          ${!value ? 'text-gray-500' : 'text-white'}`}
       >
         <span className="truncate">{value || placeholder}</span>
         <ChevronDown
@@ -91,9 +92,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700
-                     bg-white dark:bg-gray-900
-                     shadow-lg shadow-black/20
+          className="absolute z-50 mt-1 w-full rounded-xl border border-white/[0.10]
+                     bg-gray-950
+                     shadow-xl shadow-black/40
                      max-h-56 overflow-y-auto
                      animate-fade-in"
           style={{ animationDuration: '0.12s' }}
@@ -105,14 +106,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               aria-selected={value === opt}
               onClick={() => { onChange(opt); setOpen(false); }}
               className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer select-none
-                text-gray-900 dark:text-gray-100
-                hover:bg-brand-50 dark:hover:bg-brand-900/30
-                hover:text-brand-700 dark:hover:text-brand-300
+                text-gray-200
+                hover:bg-white/[0.07] hover:text-white
                 transition-colors
-                ${value === opt ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 font-medium' : ''}`}
+                ${value === opt ? 'bg-brand-500/10 text-brand-300 font-medium' : ''}`}
             >
               {opt}
-              {value === opt && <Check className="w-4 h-4 shrink-0 text-brand-500" />}
+              {value === opt && <Check className="w-4 h-4 shrink-0 text-brand-400" />}
             </li>
           ))}
         </ul>
