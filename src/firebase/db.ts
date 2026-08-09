@@ -46,6 +46,46 @@ export const registerAttendee = async (eventId: string, responses: Record<string
   return { token, id: docRef.id };
 };
 
+/**
+ * Register an attendee without Firebase auth (manual email flow).
+ * Stores userId as null — the token acts as the auth mechanism for later access.
+ */
+export const registerAttendeeAnonymous = async (eventId: string, responses: Record<string, string>): Promise<{ token: string, id: string }> => {
+  const registrationsRef = getRegistrationsRef(eventId);
+
+  // Duplicate check: look for existing manual registration with the same email
+  const email = responses['email'] || '';
+  if (email) {
+    const existingQ = query(registrationsRef, where("responses.email", "==", email), where("userId", "==", null));
+    const existingSnapshot = await getDocs(existingQ);
+    if (!existingSnapshot.empty) {
+      throw new Error("A registration with this email already exists.");
+    }
+  }
+
+  const token = generateToken();
+  const newRegistration = {
+    token,
+    responses,
+    present: false,
+    createdAt: Date.now(),
+    checkedInAt: null,
+    userId: null
+  };
+
+  const docRef = await addDoc(registrationsRef, newRegistration);
+  return { token, id: docRef.id };
+};
+
+export const getRegistrationByEmail = async (eventId: string, email: string): Promise<Registration | null> => {
+  const registrationsRef = getRegistrationsRef(eventId);
+  const q = query(registrationsRef, where("responses.email", "==", email), where("userId", "==", null));
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) return null;
+  const docData = querySnapshot.docs[0];
+  return { id: docData.id, ...docData.data() } as Registration;
+};
+
 export const getRegistrationByUid = async (eventId: string, uid: string): Promise<Registration | null> => {
   const registrationsRef = getRegistrationsRef(eventId);
   const q = query(registrationsRef, where("userId", "==", uid));

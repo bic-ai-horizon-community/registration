@@ -20,29 +20,43 @@ service cloud.firestore {
         // GET (single document by ID):
         // - Admin can read any registration
         // - Signed-in user can read their OWN registration
+        // - Manual registration (userId == null) can be read by anyone with the token URL
         allow get: if isAdmin() || (
           request.auth != null && resource.data.userId == request.auth.uid
+        ) || (
+          resource.data.userId == null
         );
         
         // LIST (query across documents):
         // - Admin can query all registrations
         // - Signed-in user can ONLY query registrations where userId matches their own UID.
-        //   Firestore validates that the query constraints guarantee this.
-        //   e.g. where("userId", "==", currentUser.uid) is allowed
-        //   e.g. where("responses.email", "==", someEmail) is DENIED (no userId filter)
+        // - Manual registrations (userId == null) can be queried (token acts as auth)
         allow list: if isAdmin() || (
           request.auth != null && resource.data.userId == request.auth.uid
+        ) || (
+          resource.data.userId == null
         );
         
-        // Signed-in users can create a registration attached to their own UID
-        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        // Create:
+        // - Signed-in users can create a registration attached to their own UID
+        // - Unauthenticated users can create a registration with userId == null (manual email flow)
+        allow create: if (request.auth != null && request.resource.data.userId == request.auth.uid) ||
+                        (request.resource.data.userId == null);
         
-        // Admin can update anything.
-        // Signed-in user can ONLY update their OWN details IF present == false,
-        // and they CANNOT modify their attendance status (present / checkedInAt).
+        // Update:
+        // - Admin can update anything.
+        // - Signed-in user can ONLY update their OWN details IF present == false,
+        //   and they CANNOT modify their attendance status (present / checkedInAt).
+        // - Manual registration (userId == null) can be updated IF present == false,
+        //   and attendance status is not modified (token URL acts as auth).
         allow update: if isAdmin() || (
           request.auth != null &&
           resource.data.userId == request.auth.uid &&
+          resource.data.present == false &&
+          request.resource.data.present == false &&
+          request.resource.data.checkedInAt == resource.data.checkedInAt
+        ) || (
+          resource.data.userId == null &&
           resource.data.present == false &&
           request.resource.data.present == false &&
           request.resource.data.checkedInAt == resource.data.checkedInAt

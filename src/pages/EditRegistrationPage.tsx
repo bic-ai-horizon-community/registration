@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Save, Download, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { subscribeToRegistrationByTokenAndUser, updateRegistration } from '../firebase/db';
+import { subscribeToRegistrationByToken, updateRegistration } from '../firebase/db';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../hooks/useAuth';
@@ -23,6 +23,8 @@ export const EditRegistrationPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Track whether this is a manual (anonymous) registration
+  const [isManualRegistration, setIsManualRegistration] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!token || !eventId) {
@@ -43,19 +45,39 @@ export const EditRegistrationPage: React.FC = () => {
     fetchEvent();
   }, [token, eventId]);
 
-  // Subscribe to registration only after user is authenticated (secure query with userId)
+  // First, try to load the registration by token only to determine if it's manual or Google-based
   useEffect(() => {
-    if (!token || !eventId || !user || authLoading) return;
+    if (!token || !eventId || authLoading) return;
 
     setLoading(true);
-    const unsubscribe = subscribeToRegistrationByTokenAndUser(eventId, token, user.uid, (data) => {
+
+    // Try loading by token only first (works for manual registrations with userId == null)
+    const unsubscribe = subscribeToRegistrationByToken(eventId, token, (data) => {
       if (data) {
-        setRegistration(data);
-        setResponses(data.responses);
+        if (data.userId === null || data.userId === undefined) {
+          // This is a manual registration — no auth needed
+          setIsManualRegistration(true);
+          setRegistration(data);
+          setResponses(data.responses);
+          setLoading(false);
+        } else {
+          // This is a Google registration — need auth to verify ownership
+          setIsManualRegistration(false);
+          if (user) {
+            if (user.uid === data.userId) {
+              setRegistration(data);
+              setResponses(data.responses);
+            } else {
+              setError('Registration not found or belongs to a different account.');
+            }
+          }
+          // If not signed in, we'll show sign-in prompt (loading stays true until auth resolves)
+          setLoading(false);
+        }
       } else {
-        setError('Registration not found or belongs to a different account.');
+        setError('Registration not found.');
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -80,7 +102,16 @@ export const EditRegistrationPage: React.FC = () => {
 
     try {
       const finalResponses = { ...responses };
-      if (user) {
+      
+      // Lock email fields
+      if (isManualRegistration) {
+        // For manual registrations, keep the original email from responses
+        for (const field of eventData.formFields) {
+          if (field.type === 'email') {
+            finalResponses[field.id] = registration.responses[field.id] || responses[field.id];
+          }
+        }
+      } else if (user) {
         for (const field of eventData.formFields) {
           if (field.type === 'email' && user.email) {
             finalResponses[field.id] = user.email;
@@ -136,7 +167,8 @@ export const EditRegistrationPage: React.FC = () => {
     );
   }
 
-  if (!user && registration) {
+  // Google registration but user not signed in — show sign-in prompt
+  if (isManualRegistration === false && !user) {
     return (
       <div className="min-h-screen bg-[#030712] flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center animate-fade-in-up">
@@ -166,7 +198,8 @@ export const EditRegistrationPage: React.FC = () => {
     );
   }
 
-  if (registration && user && registration.userId && user.uid !== registration.userId) {
+  // Google registration but wrong user
+  if (isManualRegistration === false && user && registration && registration.userId && user.uid !== registration.userId) {
     return (
       <div className="min-h-screen bg-[#030712] flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center animate-fade-in-up">
@@ -202,6 +235,11 @@ export const EditRegistrationPage: React.FC = () => {
   }
 
   if (!registration || !eventData) return null;
+
+  // For the email display in locked fields
+  const displayEmail = isManualRegistration 
+    ? (registration.responses?.email || '') 
+    : (user?.email || '');
 
   return (
     <div className="min-h-screen bg-[#030712] py-8 sm:py-12 px-4">
@@ -275,8 +313,8 @@ export const EditRegistrationPage: React.FC = () => {
               <form onSubmit={handleSave} className="space-y-4">
                 {eventData.formFields.map((field: FormField) => {
                   const isEmailField = field.type === 'email';
-                  const isLocked = isEmailField && !!user;
-                  const fieldValue = isLocked ? (user.email || '') : (responses[field.id] || '');
+                  const isLocked = isEmailField;
+                  const fieldValue = isLocked ? displayEmail : (responses[field.id] || '');
                   const isDisabled = registration.present || isLocked;
                   
                   return (
@@ -321,7 +359,9 @@ export const EditRegistrationPage: React.FC = () => {
                           className={`h-10 rounded-xl bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                         {isLocked && (
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">From Google</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                            {isManualRegistration ? 'Locked' : 'From Google'}
+                          </span>
                         )}
                       </div>
                     )}

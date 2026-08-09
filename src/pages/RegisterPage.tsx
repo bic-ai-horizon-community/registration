@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CalendarDays, Ticket, AlertTriangle, LogOut, ArrowRight, Shield } from 'lucide-react';
+import { CalendarDays, Ticket, AlertTriangle, LogOut, ArrowRight, Shield, Mail, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { SponsorBar } from '../components/ui/SponsorBar';
-import { registerAttendee, getRegistrationByUid } from '../firebase/db';
+import { registerAttendee, registerAttendeeAnonymous, getRegistrationByUid, getRegistrationByEmail } from '../firebase/db';
 import { subscribeToActiveEvent } from '../firebase/events';
 import { useAuth } from '../hooks/useAuth';
 import { signInWithGoogle, logoutUser } from '../firebase/auth';
 import type { Event, FormField, Registration } from '../types';
+
+type AuthMode = 'choose' | 'google' | 'email';
 
 export const RegisterPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -18,6 +20,10 @@ export const RegisterPage: React.FC = () => {
   
   const [existingRegistration, setExistingRegistration] = useState<Registration | null>(null);
   const [checkingRegistration, setCheckingRegistration] = useState(false);
+
+  const [authMode, setAuthMode] = useState<AuthMode>('choose');
+  const [manualEmail, setManualEmail] = useState('');
+  const [manualEmailError, setManualEmailError] = useState('');
 
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,18 +39,41 @@ export const RegisterPage: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // When Google user signs in, auto-set mode to 'google'
   useEffect(() => {
-    if (user?.email && !responses['email']) {
-      setResponses(prev => ({ ...prev, email: user.email! }));
+    if (user) {
+      setAuthMode('google');
+      if (user.email && !responses['email']) {
+        setResponses(prev => ({ ...prev, email: user.email! }));
+      }
     }
   }, [user]);
 
+  // Check for existing registration (Google users by UID, manual users by email)
   useEffect(() => {
     const checkRegistration = async () => {
-      if (user && activeEvent) {
+      if (!activeEvent) {
+        setExistingRegistration(null);
+        return;
+      }
+
+      // Google signed-in user: check by UID
+      if (user && authMode === 'google') {
         setCheckingRegistration(true);
         try {
           const reg = await getRegistrationByUid(activeEvent.id, user.uid);
+          setExistingRegistration(reg);
+        } catch (err) {
+          console.error("Failed to check existing registration", err);
+        } finally {
+          setCheckingRegistration(false);
+        }
+      }
+      // Manual email user: check by email
+      else if (authMode === 'email' && manualEmail) {
+        setCheckingRegistration(true);
+        try {
+          const reg = await getRegistrationByEmail(activeEvent.id, manualEmail);
           setExistingRegistration(reg);
         } catch (err) {
           console.error("Failed to check existing registration", err);
@@ -56,7 +85,7 @@ export const RegisterPage: React.FC = () => {
       }
     };
     checkRegistration();
-  }, [user, activeEvent]);
+  }, [user, activeEvent, authMode, manualEmail]);
 
   const handleChange = (id: string, value: string) => {
     setResponses(prev => ({ ...prev, [id]: value }));
@@ -74,46 +103,99 @@ export const RegisterPage: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await logoutUser();
+      setAuthMode('choose');
       setResponses({});
     } catch (err) {
       console.error("Sign out failed", err);
     }
   };
 
+  const handleManualEmailContinue = (e: React.FormEvent) => {
+    e.preventDefault();
+    setManualEmailError('');
+    
+    const email = manualEmail.trim().toLowerCase();
+    if (!email) {
+      setManualEmailError('Please enter your email address.');
+      return;
+    }
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setManualEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    setManualEmail(email);
+    setResponses(prev => ({ ...prev, email }));
+    setAuthMode('email');
+  };
+
+  const handleBackToChoose = () => {
+    setAuthMode('choose');
+    setManualEmail('');
+    setManualEmailError('');
+    setResponses({});
+    setExistingRegistration(null);
+    setError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeEvent) return;
-    if (!user) {
-      setError("You must be signed in to register.");
-      return;
-    }
     
     setError('');
     setIsSubmitting(true);
     try {
-      // Inject Google email into any email-type fields (since they're locked/disabled)
       const finalResponses = { ...responses };
-      for (const field of activeEvent.formFields) {
-        if (field.type === 'email' && user.email) {
-          finalResponses[field.id] = user.email;
+
+      if (authMode === 'google') {
+        // Google flow: inject Google email into email fields
+        if (!user) {
+          setError("You must be signed in to register.");
+          return;
+        }
+        for (const field of activeEvent.formFields) {
+          if (field.type === 'email' && user.email) {
+            finalResponses[field.id] = user.email;
+          }
+        }
+
+        if (activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all') {
+          const requiredDomain = activeEvent.allowedEmailDomain.toLowerCase().trim();
+          if (!user.email?.toLowerCase().trim().endsWith(`@${requiredDomain}`)) {
+            throw new Error(`This event requires a @${requiredDomain} account.`);
+          }
+        }
+      } else {
+        // Manual email flow: inject manual email into email fields
+        for (const field of activeEvent.formFields) {
+          if (field.type === 'email') {
+            finalResponses[field.id] = manualEmail;
+          }
         }
       }
 
-      if (activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all') {
-        const requiredDomain = activeEvent.allowedEmailDomain.toLowerCase().trim();
-        if (!user.email?.toLowerCase().trim().endsWith(`@${requiredDomain}`)) {
-          throw new Error(`This event requires a @${requiredDomain} account.`);
-        }
-      }
-
+      // Validate required fields
       for (const field of activeEvent.formFields) {
         if (field.required && !finalResponses[field.id]) {
           throw new Error(`${field.label} is required`);
         }
       }
-      
-      const { token } = await registerAttendee(activeEvent.id, finalResponses, user.uid);
-      navigate('/success', { state: { token, eventId: activeEvent.id, email: user.email } });
+
+      let token: string;
+      let email: string;
+
+      if (authMode === 'google' && user) {
+        const result = await registerAttendee(activeEvent.id, finalResponses, user.uid);
+        token = result.token;
+        email = user.email || '';
+      } else {
+        const result = await registerAttendeeAnonymous(activeEvent.id, finalResponses);
+        token = result.token;
+        email = manualEmail;
+      }
+
+      navigate('/success', { state: { token, eventId: activeEvent.id, email } });
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -173,6 +255,9 @@ export const RegisterPage: React.FC = () => {
   const isCollegeOnly = activeEvent.allowedEmailDomain && activeEvent.allowedEmailDomain !== 'all';
   const isBlockedUser = isCollegeOnly && user && !user.email?.toLowerCase().trim().endsWith(`@${activeEvent.allowedEmailDomain!.toLowerCase().trim()}`);
 
+  // Whether the user has identified themselves (either via Google or manual email)
+  const isIdentified = (authMode === 'google' && user) || (authMode === 'email' && manualEmail);
+
   return (
     <div className="min-h-screen bg-[#030712]">
       {/* Hero Section */}
@@ -209,9 +294,9 @@ export const RegisterPage: React.FC = () => {
             {/* Sponsor logos */}
             <SponsorBar eventName={activeEvent.name} />
 
-            {!user && (
+            {!isIdentified && (
               <p className="text-base text-gray-500 max-w-md mx-auto mt-4 animate-fade-in animate-delay-200">
-                Sign in to register.
+                Choose how you'd like to register.
               </p>
             )}
           </div>
@@ -224,38 +309,85 @@ export const RegisterPage: React.FC = () => {
           )}
 
           {/* ============================================ */}
-          {/* STATE: Not signed in                         */}
+          {/* STATE: Choose auth method                    */}
           {/* ============================================ */}
-          {!user ? (
+          {!isIdentified ? (
             <div className="animate-fade-in-up animate-delay-200">
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden">
-                <div className="p-8 sm:p-12 flex flex-col items-center text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {/* Google Sign-In Card */}
+                <button
+                  onClick={handleSignIn}
+                  className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden text-left transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:shadow-lg hover:shadow-brand-500/5 active:scale-[0.98]"
+                >
+                  <div className="p-6 sm:p-8 flex flex-col items-center text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-5 group-hover:border-white/[0.15] group-hover:bg-white/[0.08] transition-all duration-300">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-1.5">Continue with Google</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">
+                      Sign in with your Google account. Your email is verified automatically.
+                    </p>
+                    <div className="mt-5 w-full">
+                      <span className="inline-flex items-center justify-center w-full h-11 rounded-xl text-sm font-semibold bg-white text-gray-900 group-hover:bg-gray-100 transition-colors">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="mr-2">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        Sign in with Google
+                      </span>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2">Sign in to continue</h3>
-                  <p className="text-gray-400 mb-8 max-w-sm text-sm leading-relaxed">
-                    Sign in with Google to verify your identity.
-                  </p>
-                  <button 
-                    onClick={handleSignIn}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-3 h-12 px-8 rounded-xl text-sm font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-all active:scale-[0.98] shadow-lg shadow-white/10"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Continue with Google
-                  </button>
-                </div>
+                </button>
+
+                {/* Manual Email Card — hidden for college-only events */}
+                {!isCollegeOnly && (
+                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04]">
+                    <form onSubmit={handleManualEmailContinue} className="p-6 sm:p-8 flex flex-col items-center text-center h-full">
+                      <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-5">
+                        <Mail className="w-6 h-6 text-brand-400" />
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-1.5">Continue with Email</h3>
+                      <p className="text-sm text-gray-500 leading-relaxed mb-5">
+                        Enter your email address to register without a Google account.
+                      </p>
+                      <div className="w-full mt-auto space-y-3">
+                        <Input
+                          type="email"
+                          required
+                          value={manualEmail}
+                          onChange={(e) => { setManualEmail(e.target.value); setManualEmailError(''); }}
+                          className="h-11 text-sm rounded-xl bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 focus:ring-brand-500/50 focus:border-brand-500/50"
+                          placeholder="you@example.com"
+                        />
+                        {manualEmailError && (
+                          <p className="text-xs text-red-400 text-left">{manualEmailError}</p>
+                        )}
+                        <button
+                          type="submit"
+                          className="inline-flex items-center justify-center w-full h-11 rounded-xl text-sm font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-all active:scale-[0.98] shadow-lg shadow-brand-500/20"
+                        >
+                          Continue
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
+
+              {/* If college-only, show explanation why only Google is available */}
+              {isCollegeOnly && (
+                <p className="text-center text-xs text-gray-600 mt-5">
+                  Google sign-in is required for college-restricted events to verify your email domain.
+                </p>
+              )}
             </div>
 
           /* ============================================ */
@@ -272,7 +404,7 @@ export const RegisterPage: React.FC = () => {
                   <p className="text-gray-400 mb-8 max-w-sm text-sm leading-relaxed">
                     Your ticket for {activeEvent.name} is ready.
                   </p>
-                  <Link to="/success" state={{ token: existingRegistration.token, eventId: activeEvent.id, email: user.email }}>
+                  <Link to="/success" state={{ token: existingRegistration.token, eventId: activeEvent.id, email: authMode === 'google' ? user?.email : manualEmail }}>
                     <Button size="lg" className="px-8 h-12 rounded-xl shadow-lg shadow-brand-500/20 transition-all hover:shadow-brand-500/30 active:scale-[0.98]">
                       View My Ticket
                       <ArrowRight className="w-4 h-4 ml-2" />
@@ -294,7 +426,7 @@ export const RegisterPage: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">College Account Required</h3>
                   <p className="text-gray-400 mb-6 max-w-sm text-sm leading-relaxed">
-                    You're signed in as <span className="text-white font-medium">{user.email}</span>. This event requires a <span className="text-white font-medium">@{activeEvent.allowedEmailDomain}</span> account.
+                    You're signed in as <span className="text-white font-medium">{user!.email}</span>. This event requires a <span className="text-white font-medium">@{activeEvent.allowedEmailDomain}</span> account.
                   </p>
                   <Button 
                     onClick={handleSignOut}
@@ -317,8 +449,23 @@ export const RegisterPage: React.FC = () => {
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden">
                 {/* Form header */}
                 <div className="px-6 sm:px-10 pt-8 sm:pt-10 pb-0">
-                  <h3 className="text-lg font-bold text-white mb-1">Registration Form</h3>
-                  <p className="text-sm text-gray-500">Fill in your details below.</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-bold text-white">Registration Form</h3>
+                    <button
+                      type="button"
+                      onClick={authMode === 'google' ? handleSignOut : handleBackToChoose}
+                      className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                      {authMode === 'google' ? 'Sign out' : 'Back'}
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {authMode === 'google' 
+                      ? <>Registering as <span className="text-gray-300 font-medium">{user?.email}</span></>
+                      : <>Registering as <span className="text-gray-300 font-medium">{manualEmail}</span></>
+                    }
+                  </p>
                 </div>
 
                 {/* Form body */}
@@ -326,8 +473,10 @@ export const RegisterPage: React.FC = () => {
                   <form onSubmit={handleSubmit} className="space-y-5">
                     {activeEvent.formFields.map((field: FormField, index: number) => {
                       const isEmailField = field.type === 'email';
-                      const isLocked = isEmailField && !!user;
-                      const fieldValue = isLocked ? (user.email || '') : (responses[field.id] || '');
+                      const isLocked = isEmailField; // Email is always locked (from Google or manual entry)
+                      const fieldValue = isLocked 
+                        ? (authMode === 'google' ? (user?.email || '') : manualEmail) 
+                        : (responses[field.id] || '');
                       
                       return (
                       <div key={field.id} className={`space-y-2 animate-fade-in`} style={{ animationDelay: `${index * 60}ms` }}>
@@ -367,7 +516,9 @@ export const RegisterPage: React.FC = () => {
                               placeholder={`Enter your ${field.label.toLowerCase()}`}
                             />
                             {isLocked && (
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">From Google</span>
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                                {authMode === 'google' ? 'From Google' : 'Locked'}
+                              </span>
                             )}
                           </div>
                         )}
