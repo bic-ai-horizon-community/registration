@@ -1,32 +1,71 @@
-# React + TypeScript + Vite
+# AI Horizon Registration
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A React and TypeScript registration application powered by Vite.
 
-Currently, two official plugins are available:
+## Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Firebase
+- React Router
+- QR code generation and scanning
 
-## React Compiler
+## Getting started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the Oxlint configuration
+- Node.js must be installed on your machine.
+- npm or another compatible package manager.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### Installation
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### Run the development server
+
+```bash
+npm run dev
+```
+
+Vite will print the local development URL in the terminal.
+
+### Build for production
+
+```bash
+npm run build
+```
+
+### Preview the production build
+
+```bash
+npm run preview
+```
+
+### Lint the project
+
+```bash
+npm run lint
+```
+
+## Configuration
+
+If the application uses Firebase or other environment-specific services, add the required settings to a local `.env` file. Do not commit credentials or other secrets to the repository.
+
+## Project structure
+
+The application source code is organized as a standard Vite React project. Update this section as the project grows to document important directories and application modules.
+
+## Contributing
+
+1. Create a feature branch.
+2. Make your changes.
+3. Run the build and lint checks locally.
+4. Open a pull request with a clear description of the changes.
+
+## License
+
+No license has been specified for this repository.
